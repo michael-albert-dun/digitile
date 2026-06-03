@@ -5,9 +5,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Digitiler</title>
-  <link rel="stylesheet" href="styles.css?v=20260603k">
-  <script src="src/config.js?v=20260603k" defer></script>
-  <script src="src/game.js?v=20260603k" defer></script>
+  <link rel="stylesheet" href="styles.css?v=20260603ad">
+  <script src="src/config.js?v=20260603ad" defer></script>
+  <script src="src/game.js?v=20260603ad" defer></script>
 </head>
 
 <body>
@@ -34,52 +34,27 @@
         aria-label="Switch rule set">A</button>
 
       <aside id="settings-panel" class="settings-panel" hidden>
-        <fieldset>
-          <legend>Board</legend>
-          <label>
-            <input type="radio" name="board-size" value="4x4" checked>
-            4 x 4
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="4x5">
-            4 x 5
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="5x4">
-            5 x 4
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="5x5">
-            5 x 5
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="5x6">
-            5 x 6
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="6x5">
-            6 x 5
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="4x6">
-            4 x 6
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="6x4">
-            6 x 4
-          </label>
-          <label>
-            <input type="radio" name="board-size" value="6x6">
-            6 x 6
-          </label>
-        </fieldset>
+        <div class="settings-columns">
+          <fieldset>
+            <legend>Tile size</legend>
+            <label>
+              <input type="radio" name="piece-size" value="4" checked>
+              4
+            </label>
+            <label>
+              <input type="radio" name="piece-size" value="5">
+              5
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Board size</legend>
+            <div id="board-size-options"></div>
+          </fieldset>
+        </div>
 
         <fieldset>
-          <legend>Numbers</legend>
-          <label>
-            <input id="zero-mode" type="checkbox" checked disabled>
-            Digits 1-6
-          </label>
+          <legend>Time</legend>
           <label>
             <input id="untimed-mode" type="checkbox">
             Untimed mode
@@ -91,12 +66,9 @@
         <h2 id="info-title">How to play</h2>
 
         <ul class="rules-list">
-          <li>Cover the board with numbered tetrominoes.</li>
-          <li>Each piece uses exactly <span id="rule-tile-count">four</span> tiles.</li>
-          <li>Tiles must touch along their edges.</li>
+          <li id="piece-shape-rule">Cover the board with four-tile pieces. Tiles must touch along their edges.</li>
           <li id="reading-order-rule">Read each piece left-to-right, top-to-bottom.</li>
           <li id="rule-description">The digits in a piece must be non-decreasing and use only 1-4.</li>
-          <li>Tap a completed piece to inspect it, then tap its corner to remove it.</li>
         </ul>
 
         <div class="example-columns" aria-label="Examples">
@@ -113,6 +85,9 @@
               aria-label="Invalid rule example"></div>
           </div>
         </div>
+        <ul class="rules-list info-note">
+          <li>Switch between piece restrictions in the lower-right corner.</li>
+        </ul>
       </aside>
 
       <aside id="keyboard-panel" class="keyboard-panel" aria-label="Keyboard shortcuts" hidden>
@@ -144,6 +119,7 @@
       <div class="toolbar" aria-label="Game controls">
         <button id="restart-button" type="button">Restart</button>
         <button id="new-button" type="button">New</button>
+        <button id="pentomino-button" type="button" hidden>Start</button>
       </div>
     </section>
   </main>

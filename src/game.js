@@ -16,18 +16,29 @@ const RULESETS = {
   nondecreasing: {
     label: "Nondecreasing",
     title: "Making progress",
-    digits: ["1", "2", "3", "4"],
-    infoText: "The values in each piece must increase or stay the same in reading order.",
-    exampleValues: ["1", "2", "3", "4"],
-    invalidExampleValues: ["1", "3", "2", "4"],
-    invalidReason: "The digits must be non-decreasing and use only 1-4.",
+    digitsBySize: {
+      4: ["1", "2", "3", "4"],
+      5: ["1", "2", "3", "4", "5"]
+    },
+    infoText: "Tile values must increase or stay the same.",
+    exampleValuesBySize: {
+      4: ["1", "2", "3", "4"],
+      5: ["1", "2", "3", "4", "5"]
+    },
+    invalidExampleValuesBySize: {
+      4: ["1", "3", "2", "4"],
+      5: ["1", "2", "4", "3", "5"]
+    },
+    invalidReason(values) {
+      return `The digits must be non-decreasing and use only ${digitSummary(ruleDigits(this))}.`;
+    },
     generatePieceSequences(pieceCount, length) {
-      const sequences = buildAllSequences(this.digits, length).filter(isNonDecreasing);
+      const sequences = buildAllSequences(ruleDigits(this), length).filter(isNonDecreasing);
 
       return repeatFromGroup(sequences, pieceCount);
     },
     validateMove(values) {
-      return usesRuleDigits(values, this.digits) && isNonDecreasing(values);
+      return usesRuleDigits(values, ruleDigits(this)) && isNonDecreasing(values);
     },
     validateSolution(pieceValues) {
       return pieceValues.every((values) => this.validateMove(values));
@@ -36,42 +47,68 @@ const RULESETS = {
   "sum-last": {
     label: "Sum last",
     title: "Final total",
-    digits: ["1", "2", "3", "4", "5", "6"],
-    infoText: "The first three values in reading order must add up to the last value.",
-    exampleValues: ["1", "2", "3", "6"],
-    invalidExampleValues: ["1", "2", "4", "6"],
-    invalidReason: "The first three LR-TB digits must sum to the fourth and use only 1-6.",
+    digitsBySize: {
+      4: ["1", "2", "3", "4", "5", "6"],
+      5: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    },
+    infoText() {
+      return `The first ${numberWord(state.pieceSize - 1)} values must add up to the last value.`;
+    },
+    exampleValuesBySize: {
+      4: ["1", "2", "3", "6"],
+      5: ["1", "1", "2", "3", "7"]
+    },
+    invalidExampleValuesBySize: {
+      4: ["1", "2", "4", "6"],
+      5: ["1", "1", "2", "4", "7"]
+    },
+    invalidReason(values) {
+      return `The first ${values.length - 1} LR-TB digits must sum to the last and use only ${digitSummary(ruleDigits(this))}.`;
+    },
     generatePieceSequences(pieceCount, length) {
-      const sequences = buildAllSequences(this.digits, length).filter(isFirstThreeSum);
+      const sequences = buildAllSequences(ruleDigits(this), length).filter(isSumLast);
 
       return repeatFromGroup(sequences, pieceCount);
     },
     validateMove(values) {
-      return usesRuleDigits(values, this.digits) && isFirstThreeSum(values);
+      return usesRuleDigits(values, ruleDigits(this)) && isSumLast(values);
     },
     validateSolution(pieceValues) {
       return pieceValues.every((values) => this.validateMove(values));
     },
     aggregate: sequenceSum,
     targetIndex(values) {
-      return this.validateMove(values) ? 3 : null;
+      return this.validateMove(values) ? values.length - 1 : null;
     }
   },
   "sum-anywhere": {
     label: "Sum anywhere",
     title: "Some total",
-    digits: ["1", "2", "3", "4", "5", "6"],
-    infoText: "One value in each piece must equal the sum of the other three values.",
-    exampleValues: ["6", "3", "2", "1"],
-    invalidExampleValues: ["6", "4", "2", "1"],
-    invalidReason: "One digit must equal the sum of the other three and use only 1-6.",
+    digitsBySize: {
+      4: ["1", "2", "3", "4", "5", "6"],
+      5: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    },
+    infoText() {
+      return `One value in each piece must equal the sum of the other ${numberWord(state.pieceSize - 1)} values.`;
+    },
+    exampleValuesBySize: {
+      4: ["6", "3", "2", "1"],
+      5: ["8", "3", "2", "1", "2"]
+    },
+    invalidExampleValuesBySize: {
+      4: ["6", "4", "2", "1"],
+      5: ["8", "4", "2", "1", "2"]
+    },
+    invalidReason(values) {
+      return `One digit must equal the sum of the other ${numberWord(values.length - 1)} and use only ${digitSummary(ruleDigits(this))}.`;
+    },
     generatePieceSequences(pieceCount, length) {
-      const sequences = buildAllSequences(this.digits, length).filter(hasValueEqualToSumOfOthers);
+      const sequences = buildAllSequences(ruleDigits(this), length).filter(hasValueEqualToSumOfOthers);
 
       return repeatFromGroup(sequences, pieceCount);
     },
     validateMove(values) {
-      return usesRuleDigits(values, this.digits) && hasValueEqualToSumOfOthers(values);
+      return usesRuleDigits(values, ruleDigits(this)) && hasValueEqualToSumOfOthers(values);
     },
     validateSolution(pieceValues) {
       return pieceValues.every((values) => this.validateMove(values));
@@ -88,18 +125,31 @@ const RULESETS = {
   "values-between": {
     label: "Values between",
     title: "Middling middle",
-    digits: ["1", "2", "3", "4", "5", "6", "7", "8"],
-    infoText: "The two middle values in reading order must lie strictly between the first and last values.",
-    exampleValues: ["1", "2", "5", "6"],
-    invalidExampleValues: ["1", "1", "5", "6"],
-    invalidReason: "The middle LR-TB digits must lie strictly between the first and last.",
+    digitsBySize: {
+      4: ["1", "2", "3", "4", "5", "6", "7", "8"],
+      5: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
+    },
+    infoText() {
+      return `The ${numberWord(state.pieceSize - 2)} middle values must lie strictly between the first and last values.`;
+    },
+    exampleValuesBySize: {
+      4: ["1", "2", "5", "6"],
+      5: ["1", "2", "4", "5", "6"]
+    },
+    invalidExampleValuesBySize: {
+      4: ["1", "1", "5", "6"],
+      5: ["1", "2", "6", "5", "6"]
+    },
+    invalidReason() {
+      return "The middle LR-TB digits must lie strictly between the first and last.";
+    },
     generatePieceSequences(pieceCount, length) {
-      const sequences = buildAllSequences(this.digits, length).filter(hasMiddleValuesBetweenEnds);
+      const sequences = buildAllSequences(ruleDigits(this), length).filter(hasMiddleValuesBetweenEnds);
 
       return repeatFromGroup(sequences, pieceCount);
     },
     validateMove(values) {
-      return usesRuleDigits(values, this.digits) && hasMiddleValuesBetweenEnds(values);
+      return usesRuleDigits(values, ruleDigits(this)) && hasMiddleValuesBetweenEnds(values);
     },
     validateSolution(pieceValues) {
       return pieceValues.every((values) => this.validateMove(values));
@@ -118,6 +168,28 @@ const RULESET_SYMBOLS = {
   "sum-anywhere": "+?",
   "values-between": "]:["
 };
+const INTRO_RULE_CARDS = [
+  {
+    key: "nondecreasing",
+    values: ["1", "1", "2", "2"],
+    shape: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 1 }, { row: 1, col: 2 }]
+  },
+  {
+    key: "sum-last",
+    values: ["2", "1", "3", "6"],
+    shape: [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 2, col: 1 }]
+  },
+  {
+    key: "sum-anywhere",
+    values: ["5", "1", "1", "3"],
+    shape: [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 2, col: 1 }]
+  },
+  {
+    key: "values-between",
+    values: ["6", "2", "5", "1"],
+    shape: [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }]
+  }
+];
 const RULE_MODEL_SHAPES = [
   [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }],
   [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 1, col: 1 }],
@@ -137,6 +209,14 @@ const RULE_MODEL_SHAPES = [
   [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }],
   [{ row: 0, col: 2 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }]
 ];
+const PENTOMINO_RULE_MODEL_SHAPES = [
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 1, col: 1 }, { row: 2, col: 1 }],
+  [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }, { row: 2, col: 2 }],
+  [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }, { row: 2, col: 1 }],
+  [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 2, col: 0 }, { row: 2, col: 1 }, { row: 2, col: 2 }],
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 1 }, { row: 1, col: 2 }, { row: 1, col: 3 }],
+  [{ row: 0, col: 2 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }, { row: 2, col: 0 }]
+];
 const RULESET_ALIASES = new Map([
   ["first3-sum", "sum-last"],
   ["first3-anywhere", "sum-anywhere"],
@@ -145,7 +225,7 @@ const RULESET_ALIASES = new Map([
 const MAX_GENERATION_ATTEMPTS = 5000;
 const MAX_ALLOWED_SOLUTIONS = 2;
 const FALLBACK_TILINGS = {
-  "4x4": ["0000111122223333"]
+  "4:4x4": ["0000111122223333"]
 };
 const TIMER_MODE = {
   TIMED: "timed",
@@ -156,6 +236,7 @@ const MODES = {
     pieceSize: 4,
     pieceName: "tetromino",
     pieceLabel: "tetrominoes",
+    tilingPrefix: "tetromino",
     boardSizes: [
       { rows: 4, cols: 4, label: "4 x 4" },
       { rows: 4, cols: 5, label: "4 x 5" },
@@ -163,6 +244,19 @@ const MODES = {
       { rows: 4, cols: 6, label: "4 x 6" },
       { rows: 6, cols: 4, label: "6 x 4" },
       { rows: 6, cols: 6, label: "6 x 6" }
+    ]
+  },
+  5: {
+    pieceSize: 5,
+    pieceName: "pentomino",
+    pieceLabel: "pentominoes",
+    tilingPrefix: "pentomino",
+    boardSizes: [
+      { rows: 4, cols: 5, label: "4 x 5" },
+      { rows: 5, cols: 4, label: "5 x 4" },
+      { rows: 5, cols: 5, label: "5 x 5" },
+      { rows: 5, cols: 6, label: "5 x 6" },
+      { rows: 6, cols: 5, label: "6 x 5" }
     ]
   }
 };
@@ -179,6 +273,7 @@ const state = {
   dragSelection: null,
   invalidSelection: false,
   invalidClearTimer: null,
+  isIntro: false,
   hasTileSelectionStarted: false,
   cheatBuffer: "",
   ruleSetKey: DEFAULT_RULESET,
@@ -196,15 +291,15 @@ const state = {
 };
 
 const elements = {
+  playArea: document.querySelector(".play-area"),
   board: document.querySelector("#board"),
   selectionLines: document.querySelector("#selection-lines"),
   completionMessage: document.querySelector("#completion-message"),
   settingsButton: document.querySelector("#settings-button"),
   settingsPanel: document.querySelector("#settings-panel"),
   settingsSummary: document.querySelector("#settings-summary"),
-  boardSizeInputs: document.querySelectorAll("input[name='board-size']"),
+  boardSizeOptions: document.querySelector("#board-size-options"),
   pieceSizeInputs: document.querySelectorAll("input[name='piece-size']"),
-  zeroModeInput: document.querySelector("#zero-mode"),
   timerModeInput: document.querySelector("#untimed-mode"),
   infoButton: document.querySelector("#info-button"),
   infoPanel: document.querySelector("#info-panel"),
@@ -216,11 +311,12 @@ const elements = {
   printGrid: document.querySelector("#print-grid"),
   restartButton: document.querySelector("#restart-button"),
   newButton: document.querySelector("#new-button"),
+  pentominoButton: document.querySelector("#pentomino-button"),
   title: document.querySelector("#title"),
   infoTitle: document.querySelector("#info-title"),
+  pieceShapeRule: document.querySelector("#piece-shape-rule"),
   readingOrderRule: document.querySelector("#reading-order-rule"),
   ruleDescription: document.querySelector("#rule-description"),
-  ruleTileCount: document.querySelector("#rule-tile-count"),
   exampleValidStraight: document.querySelector("#example-valid-straight"),
   exampleValidBent: document.querySelector("#example-valid-bent"),
   exampleInvalidDisconnected: document.querySelector("#example-invalid-disconnected"),
@@ -229,9 +325,7 @@ const elements = {
 
 configureBoardSizeControls();
 elements.settingsButton.addEventListener("click", toggleSettingsPanel);
-elements.boardSizeInputs.forEach((input) => input.addEventListener("change", updateBoardSize));
 elements.pieceSizeInputs.forEach((input) => input.addEventListener("change", updatePieceSize));
-elements.zeroModeInput.addEventListener("change", updateZeroMode);
 elements.timerModeInput.addEventListener("change", updateTimerMode);
 elements.infoButton.addEventListener("click", toggleInfoPanel);
 elements.shareButton.addEventListener("click", copyPuzzleToClipboard);
@@ -239,6 +333,7 @@ elements.pieceSizeButton.addEventListener("click", switchPieceSizeMode);
 elements.ruleSetButton.addEventListener("click", cycleRuleSet);
 elements.restartButton.addEventListener("click", restartGame);
 elements.newButton.addEventListener("click", startNewGame);
+elements.pentominoButton.addEventListener("click", startPentominoGame);
 document.addEventListener("keydown", handleKeydown);
 document.addEventListener("click", closePanelsFromOutside);
 document.addEventListener("pointermove", handleDragMove);
@@ -257,8 +352,7 @@ async function startGame() {
       generatePuzzle();
       updateAddressBar();
     } else if (!urlLoadResult && !restoreStoredPuzzle()) {
-      await loadTilingDataForSize(state.rows, state.cols);
-      generatePuzzle();
+      showIntro();
     }
 
     syncSettingsControls();
@@ -275,32 +369,57 @@ function showStartupError(error) {
   elements.completionMessage.textContent = `Startup error: ${error.message}`;
 }
 
+function showIntro() {
+  state.isIntro = true;
+  state.pieceSize = DEFAULT_PIECE_SIZE;
+  state.rows = 4;
+  state.cols = 4;
+  state.board = [];
+  state.selection = [];
+  state.locked.clear();
+  state.moves = [];
+  state.activeMoveIndex = null;
+  state.dragSelection = null;
+  state.invalidSelection = false;
+  state.hasTileSelectionStarted = false;
+  state.startedAt = null;
+  state.completedAt = null;
+  state.solutionTiling = null;
+  clearInvalidTimer();
+  updateModeText();
+  syncSettingsControls();
+}
+
 async function loadTilingDataForSize(rows, cols) {
-  if (!isSupportedSize(rows, cols)) {
+  const pieceSize = state.pieceSize;
+
+  if (!isSupportedSize(rows, cols, pieceSize)) {
     return;
   }
 
-  if (state.loadedTilingSizes.has(sizeKey(rows, cols))) {
+  if (state.loadedTilingSizes.has(tilingStoreKey(pieceSize, rows, cols))) {
     return;
   }
 
   const canonicalKey = canonicalSizeKey(rows, cols);
+  const loadKey = tilingStoreKey(pieceSize, ...canonicalKey.split("x").map(Number));
+  const mode = MODES[pieceSize];
 
-  if (!state.tilingLoadPromises.has(canonicalKey)) {
+  if (!state.tilingLoadPromises.has(loadKey)) {
     state.tilingLoadPromises.set(
-      canonicalKey,
-      fetchText(`data/tetromino-tilings-${canonicalKey}.txt`)
+      loadKey,
+      fetchText(`data/${mode.tilingPrefix}-tilings-${canonicalKey}.txt`)
         .then(parseTilingText)
         .then((tilings) => {
           if (tilings.length > 0) {
             const [canonicalRows, canonicalCols] = canonicalKey.split("x").map(Number);
-            storeTilings(canonicalRows, canonicalCols, tilings);
+            storeTilings(pieceSize, canonicalRows, canonicalCols, tilings);
           }
         })
     );
   }
 
-  await state.tilingLoadPromises.get(canonicalKey);
+  await state.tilingLoadPromises.get(loadKey);
 }
 
 async function fetchText(url) {
@@ -319,15 +438,15 @@ function parseTilingText(text) {
     .filter(Boolean);
 }
 
-function storeTilings(rows, cols, tilings) {
-  state.tilingsBySize[sizeKey(rows, cols)] = tilings;
-  state.loadedTilingSizes.add(sizeKey(rows, cols));
+function storeTilings(pieceSize, rows, cols, tilings) {
+  state.tilingsBySize[tilingStoreKey(pieceSize, rows, cols)] = tilings;
+  state.loadedTilingSizes.add(tilingStoreKey(pieceSize, rows, cols));
 
-  if (rows !== cols && isSupportedSize(cols, rows, DEFAULT_PIECE_SIZE)) {
-    state.tilingsBySize[sizeKey(cols, rows)] = tilings.map((tiling) =>
+  if (rows !== cols && isSupportedSize(cols, rows, pieceSize)) {
+    state.tilingsBySize[tilingStoreKey(pieceSize, cols, rows)] = tilings.map((tiling) =>
       transposeTiling(tiling, rows, cols)
     );
-    state.loadedTilingSizes.add(sizeKey(cols, rows));
+    state.loadedTilingSizes.add(tilingStoreKey(pieceSize, cols, rows));
   }
 }
 
@@ -345,6 +464,7 @@ function transposeTiling(tiling, rows, cols) {
 
 function generatePuzzle() {
   let candidate = null;
+  state.isIntro = false;
 
   for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt += 1) {
     candidate = generateCandidateBoard();
@@ -421,7 +541,7 @@ function isValidTilingSolution(board, tiling) {
 }
 
 function currentTilings() {
-  return state.tilingsBySize[currentSizeKey()] || [];
+  return state.tilingsBySize[tilingStoreKey(state.pieceSize, state.rows, state.cols)] || [];
 }
 
 function compactTilingToPieces(tiling) {
@@ -596,7 +716,7 @@ function isStoredPuzzle(stored) {
     isSupportedSize(stored.rows, stored.cols, pieceSize) &&
     typeof stored.grid === "string" &&
     isKnownRuleSet(stored.ruleSetKey || DEFAULT_RULESET) &&
-    isValidGridString(stored.grid, stored.ruleSetKey || DEFAULT_RULESET, expectedCellCount) &&
+    isValidGridString(stored.grid, stored.ruleSetKey || DEFAULT_RULESET, expectedCellCount, pieceSize) &&
     (
       stored.solutionTiling === undefined ||
       stored.solutionTiling === null ||
@@ -633,6 +753,22 @@ function resetProgress({ resetTimer = true } = {}) {
 
 function render() {
   elements.board.innerHTML = "";
+  elements.playArea.classList.toggle("is-intro", state.isIntro);
+  elements.board.hidden = state.isIntro;
+  elements.completionMessage.hidden = state.isIntro;
+  elements.shareButton.hidden = state.isIntro;
+
+  if (state.isIntro) {
+    elements.selectionLines.style.removeProperty("--selection-space");
+    renderSelectionLines();
+    renderToolbar();
+    renderPieceSizeButton();
+    renderRuleSetButton();
+    return;
+  }
+
+  elements.completionMessage.hidden = false;
+  elements.shareButton.hidden = false;
   elements.board.style.gridTemplateColumns = `repeat(${state.cols}, minmax(0, 1fr))`;
   elements.board.style.aspectRatio = `${state.cols} / ${state.rows}`;
   elements.board.style.setProperty("--board-max-width", `${boardMaxWidth()}px`);
@@ -660,6 +796,7 @@ function render() {
   });
 
   renderSelectionLines();
+  renderToolbar();
   renderPieceSizeButton();
   renderRuleSetButton();
 }
@@ -667,6 +804,7 @@ function render() {
 function renderPieceSizeButton() {
   const nextPieceSize = alternatePieceSize();
 
+  elements.pieceSizeButton.hidden = true;
   elements.pieceSizeButton.textContent = String(state.pieceSize);
   elements.pieceSizeButton.setAttribute("aria-label", `Switch to ${nextPieceSize}-tile pieces`);
 }
@@ -674,6 +812,7 @@ function renderPieceSizeButton() {
 function renderRuleSetButton() {
   const nextKey = nextRuleSetKey();
 
+  elements.ruleSetButton.hidden = state.isIntro;
   elements.ruleSetButton.textContent = RULESET_SYMBOLS[state.ruleSetKey] || "?";
   elements.ruleSetButton.setAttribute(
     "aria-label",
@@ -681,10 +820,79 @@ function renderRuleSetButton() {
   );
 }
 
+function renderToolbar() {
+  const toolbar = elements.newButton.closest(".toolbar");
+
+  elements.restartButton.hidden = state.isIntro;
+  elements.pentominoButton.hidden = !state.isIntro;
+  toolbar.classList.toggle("is-intro", state.isIntro);
+
+  if (state.isIntro) {
+    elements.newButton.setAttribute("aria-label", "Open tetromino game");
+    elements.pentominoButton.setAttribute("aria-label", "Start pentomino game");
+    renderIntroModeButton(
+      elements.newButton,
+      [
+        { value: "O", row: 1, col: 1 },
+        { value: "P", row: 1, col: 2 },
+        { value: "E", row: 2, col: 2 },
+        { value: "N", row: 2, col: 3 }
+      ],
+      "intro-tiles-open",
+      3
+    );
+    renderIntroModeButton(
+      elements.pentominoButton,
+      [
+        { value: "S", row: 1, col: 1 },
+        { value: "T", row: 1, col: 2 },
+        { value: "A", row: 1, col: 3 },
+        { value: "R", row: 2, col: 2 },
+        { value: "T", row: 2, col: 3 }
+      ],
+      "intro-tiles-start",
+      3
+    );
+    return;
+  }
+
+  elements.newButton.textContent = "New";
+  elements.newButton.setAttribute("aria-label", "New puzzle");
+}
+
+function renderIntroModeButton(button, cells, className, cols) {
+  button.textContent = "";
+
+  const tileDisplay = document.createElement("span");
+  tileDisplay.className = `intro-tiles ${className}`;
+  tileDisplay.style.setProperty("--intro-cols", String(cols));
+  tileDisplay.setAttribute("aria-hidden", "true");
+
+  cells.forEach(({ value, row, col }) => {
+    const tile = document.createElement("span");
+
+    tile.className = "intro-tile";
+    tile.textContent = value;
+    tile.style.gridArea = `${row} / ${col}`;
+    tileDisplay.append(tile);
+  });
+
+  button.append(tileDisplay);
+}
+
 function renderSelectionLines() {
   elements.selectionLines.innerHTML = "";
+
+  if (state.isIntro) {
+    elements.selectionLines.className = "selection-lines is-intro";
+    renderIntroRulePicker();
+    renderCompletionMessage();
+    return;
+  }
+
   const showRuleModel = shouldShowRuleModel();
 
+  elements.selectionLines.className = "selection-lines";
   elements.selectionLines.classList.toggle("is-complete", isPuzzleComplete());
   elements.selectionLines.classList.toggle("is-complete-medium", isPuzzleComplete() && pieceCount() === 6);
   elements.selectionLines.classList.toggle("is-complete-large", isPuzzleComplete() && pieceCount() >= 9);
@@ -742,6 +950,63 @@ function renderSelectionLines() {
   }
 
   renderCompletionMessage();
+}
+
+function renderIntroRulePicker() {
+  const grid = document.createElement("div");
+
+  grid.className = "intro-rule-grid";
+
+  INTRO_RULE_CARDS.forEach((card) => {
+    const button = document.createElement("button");
+    const tile = makeIntroRuleTile(card);
+    const label = document.createElement("span");
+    const icon = document.createElement("strong");
+
+    label.className = "intro-rule-card-label";
+    icon.textContent = RULESET_SYMBOLS[card.key] || "?";
+    label.append(document.createTextNode(RULESETS[card.key].title), icon);
+
+    button.type = "button";
+    button.className = card.key === state.ruleSetKey
+      ? "intro-rule-card is-selected"
+      : "intro-rule-card";
+    button.setAttribute("aria-label", `Choose ${RULESETS[card.key].label}`);
+    button.append(tile, label);
+    button.addEventListener("click", () => {
+      state.ruleSetKey = card.key;
+      syncSettingsControls();
+      renderExampleGrids();
+      render();
+    });
+    grid.append(button);
+  });
+
+  elements.selectionLines.append(grid);
+}
+
+function makeIntroRuleTile(card) {
+  const tile = document.createElement("span");
+  const rows = Math.max(...card.shape.map((cell) => cell.row)) + 1;
+  const cols = Math.max(...card.shape.map((cell) => cell.col)) + 1;
+  const ruleSet = RULESETS[card.key];
+  const targetIndex = ruleSet.targetIndex?.(card.values);
+
+  tile.className = "intro-rule-tile";
+  tile.style.setProperty("--intro-rule-rows", String(rows));
+  tile.style.setProperty("--intro-rule-cols", String(cols));
+  tile.setAttribute("aria-hidden", "true");
+
+  card.shape.forEach((position, index) => {
+    const cell = document.createElement("span");
+
+    cell.className = targetIndex === index ? "is-rule-target" : "";
+    cell.textContent = card.values[index];
+    cell.style.gridArea = `${position.row + 1} / ${position.col + 1}`;
+    tile.append(cell);
+  });
+
+  return tile;
 }
 
 function renderRuleModel() {
@@ -802,10 +1067,11 @@ function setRuleModel() {
   const ruleSet = currentRuleSet();
   const values = ruleSet.generatePieceSequences(1, state.pieceSize)[0] || [];
   const targetIndex = ruleSet.targetIndex?.(values);
+  const shapes = state.pieceSize === 5 ? PENTOMINO_RULE_MODEL_SHAPES : RULE_MODEL_SHAPES;
 
   state.ruleModelValues = values;
   state.ruleModelTargetIndex = targetIndex ?? null;
-  state.ruleModelShape = randomItem(RULE_MODEL_SHAPES).slice().sort(compareCells);
+  state.ruleModelShape = randomItem(shapes).slice().sort(compareCells);
 }
 
 function makeMiniTile(value, extraClassName) {
@@ -1058,7 +1324,7 @@ function validateSelection(selection) {
   if (!ruleSet.validateMove(values, existingPieces)) {
     return {
       valid: false,
-      reason: ruleSet.invalidReason,
+      reason: ruleReason(ruleSet, values),
       shape: "Out of order",
       aggregate: 0,
       targetCellId: null
@@ -1175,9 +1441,31 @@ function revealSolution() {
 }
 
 async function startNewGame() {
+  if (state.isIntro) {
+    await startGameWithPieceSize(DEFAULT_PIECE_SIZE);
+    return;
+  }
+
   await loadTilingDataForSize(state.rows, state.cols);
   generatePuzzle();
   updateAddressBar();
+  render();
+}
+
+async function startPentominoGame() {
+  await startGameWithPieceSize(5);
+}
+
+async function startGameWithPieceSize(pieceSize) {
+  await setPieceSize(pieceSize, { regenerate: false });
+  const size = defaultSize(pieceSize);
+
+  setBoardDimensions(size.rows, size.cols);
+  syncSettingsControls();
+  await loadTilingDataForSize(state.rows, state.cols);
+  generatePuzzle();
+  updateAddressBar();
+  renderExampleGrids();
   render();
 }
 
@@ -1191,10 +1479,6 @@ async function updateBoardSize(event) {
 
 async function updatePieceSize(event) {
   await setPieceSize(Number(event.target.value));
-}
-
-function updateZeroMode(event) {
-  setZeroMode(event.target.checked);
 }
 
 function updateTimerMode(event) {
@@ -1216,7 +1500,6 @@ async function setBoardSize(rows, cols) {
 
   setBoardDimensions(rows, cols);
   syncSettingsControls();
-  closeSettingsPanel();
   await loadTilingDataForSize(rows, cols);
   generatePuzzle();
   updateAddressBar();
@@ -1241,7 +1524,6 @@ async function setPieceSize(pieceSize, { regenerate = true } = {}) {
 
   if (regenerate) {
     syncSettingsControls();
-    closeSettingsPanel();
     await loadTilingDataForSize(state.rows, state.cols);
     generatePuzzle();
     updateAddressBar();
@@ -1276,13 +1558,6 @@ function nextRuleSetKey() {
   return RULESET_ORDER[(index + 1) % RULESET_ORDER.length] || DEFAULT_RULESET;
 }
 
-function setZeroMode(enabled) {
-  state.includeZero = false;
-  syncSettingsControls();
-  closeSettingsPanel();
-  render();
-}
-
 function setTimerMode(timerMode) {
   if (!Object.values(TIMER_MODE).includes(timerMode) || state.timerMode === timerMode) {
     return;
@@ -1290,7 +1565,6 @@ function setTimerMode(timerMode) {
 
   state.timerMode = timerMode;
   syncSettingsControls();
-  closeSettingsPanel();
   saveCurrentPuzzle();
   updateAddressBar();
   render();
@@ -1298,13 +1572,9 @@ function setTimerMode(timerMode) {
 
 function updateModeText() {
   const mode = currentMode();
-  const numberWords = {
-    4: "four",
-    5: "five"
-  };
 
   elements.title.dataset.hint = `Tile the board with connected numbered ${mode.pieceLabel}.`;
-  elements.ruleTileCount.textContent = numberWords[state.pieceSize] || String(state.pieceSize);
+  elements.pieceShapeRule.textContent = `Cover the board with ${numberWord(state.pieceSize)}-tile pieces. Tiles must touch along their edges.`;
   renderExampleGrids();
 }
 
@@ -1314,7 +1584,7 @@ function renderExampleGrids() {
 
   elements.infoTitle.textContent = ruleSet.title || ruleSet.label;
   elements.readingOrderRule.hidden = state.ruleSetKey === "sum-anywhere";
-  elements.ruleDescription.textContent = ruleSet.infoText;
+  elements.ruleDescription.textContent = ruleText(ruleSet);
   renderExampleGrid(elements.exampleValidStraight, examples.validStraight);
   renderExampleGrid(elements.exampleValidBent, examples.validBent);
   renderExampleGrid(elements.exampleInvalidDisconnected, examples.invalidDisconnected);
@@ -1322,22 +1592,33 @@ function renderExampleGrids() {
 }
 
 function ruleExamples(ruleSet) {
-  const validValues = ruleSet.exampleValues || ruleSet.generatePieceSequences(1, state.pieceSize)[0];
-  const invalidValues = ruleSet.invalidExampleValues || validValues.slice().reverse();
+  const validValues = ruleExampleValues(ruleSet, "exampleValues") ||
+    ruleSet.generatePieceSequences(1, state.pieceSize)[0];
+  const invalidValues = ruleExampleValues(ruleSet, "invalidExampleValues") ||
+    validValues.slice().reverse();
+  const positions = examplePositions();
 
   return {
-    validStraight: exampleCells(validValues, [
-      [1, 1], [1, 2], [1, 3], [1, 4]
-    ]),
-    validBent: exampleCells(validValues, [
-      [1, 1], [1, 2], [2, 2], [3, 2]
-    ]),
-    invalidDisconnected: exampleCells(validValues, [
-      [1, 1], [1, 3], [2, 2], [3, 3]
-    ]),
-    invalidShort: exampleCells(invalidValues, [
-      [1, 1], [1, 2], [2, 2], [3, 2]
-    ])
+    validStraight: exampleCells(validValues, positions.straight),
+    validBent: exampleCells(validValues, positions.bent),
+    invalidDisconnected: exampleCells(validValues, positions.disconnected),
+    invalidShort: exampleCells(invalidValues, positions.bent)
+  };
+}
+
+function examplePositions() {
+  if (state.pieceSize === 5) {
+    return {
+      straight: [[1, 1], [1, 2], [1, 3], [1, 4], [1, 5]],
+      bent: [[1, 1], [1, 2], [2, 2], [3, 2], [3, 3]],
+      disconnected: [[1, 1], [1, 3], [2, 2], [3, 3], [3, 4]]
+    };
+  }
+
+  return {
+    straight: [[1, 1], [1, 2], [1, 3], [1, 4]],
+    bent: [[1, 1], [1, 2], [2, 2], [3, 2]],
+    disconnected: [[1, 1], [1, 3], [2, 2], [3, 3]]
   };
 }
 
@@ -1363,24 +1644,27 @@ function renderExampleGrid(element, cells) {
 }
 
 function configureBoardSizeControls() {
-  elements.boardSizeInputs.forEach((input) => {
-    const size = parseSizeKey(input.value);
-    const isAvailable = size !== null;
+  elements.boardSizeOptions.innerHTML = "";
 
-    input.disabled = !isAvailable;
-    input.closest("label").hidden = !isAvailable;
+  modeBoardSizes().forEach((size) => {
+    const label = document.createElement("label");
+    const input = document.createElement("input");
+
+    input.type = "radio";
+    input.name = "board-size";
+    input.value = sizeKey(size.rows, size.cols);
+    input.checked = input.value === currentSizeKey();
+    input.addEventListener("change", updateBoardSize);
+    label.append(input, document.createTextNode(size.label));
+    elements.boardSizeOptions.append(label);
   });
 }
 
 function syncSettingsControls() {
   configureBoardSizeControls();
-  elements.boardSizeInputs.forEach((input) => {
-    input.checked = input.value === currentSizeKey();
-  });
   elements.pieceSizeInputs.forEach((input) => {
     input.checked = Number(input.value) === state.pieceSize;
   });
-  elements.zeroModeInput.checked = true;
   elements.timerModeInput.checked = !isTimedMode();
   updateSettingsSummary();
 }
@@ -1389,7 +1673,7 @@ function updateSettingsSummary() {
   elements.settingsSummary.textContent = [
     `${state.pieceSize}-tile`,
     currentSizeKey(),
-    digitSummary(currentRuleSet().digits),
+    digitSummary(ruleDigits(currentRuleSet())),
     state.ruleSetKey,
     isTimedMode() ? null : "Untimed"
   ].filter(Boolean).join(" | ");
@@ -1538,22 +1822,6 @@ function closePrintPanel() {
 }
 
 function handleKeydown(event) {
-  if (
-    event.key === "Escape" &&
-    (
-      !elements.infoPanel.hidden ||
-      !elements.settingsPanel.hidden ||
-      !elements.keyboardPanel.hidden ||
-      !elements.printPanel.hidden
-    )
-  ) {
-    closeInfoPanel();
-    closeSettingsPanel();
-    closeKeyboardPanel();
-    closePrintPanel();
-    return;
-  }
-
   if (handleCheatCode(event)) {
     return;
   }
@@ -1769,6 +2037,34 @@ function currentRuleSet() {
   return RULESETS[normalizeRuleSetKey(state.ruleSetKey)] || RULESETS[DEFAULT_RULESET];
 }
 
+function ruleDigits(ruleSet, pieceSize = state.pieceSize) {
+  return ruleSet.digitsBySize?.[pieceSize] || ruleSet.digits || [];
+}
+
+function ruleText(ruleSet) {
+  return typeof ruleSet.infoText === "function" ? ruleSet.infoText() : ruleSet.infoText;
+}
+
+function ruleReason(ruleSet, values) {
+  return typeof ruleSet.invalidReason === "function"
+    ? ruleSet.invalidReason(values)
+    : ruleSet.invalidReason;
+}
+
+function ruleExampleValues(ruleSet, property) {
+  return ruleSet[`${property}BySize`]?.[state.pieceSize] || ruleSet[property];
+}
+
+function numberWord(value) {
+  return {
+    1: "one",
+    2: "two",
+    3: "three",
+    4: "four",
+    5: "five"
+  }[value] || String(value);
+}
+
 function isKnownRuleSet(ruleSetKey) {
   return Object.prototype.hasOwnProperty.call(RULESETS, normalizeRuleSetKey(ruleSetKey));
 }
@@ -1779,13 +2075,19 @@ function normalizeRuleSetKey(ruleSetKey) {
   return RULESET_ALIASES.get(key) || key;
 }
 
-function isValidGridString(grid, ruleSetKey = state.ruleSetKey, expectedLength = boardCellCount()) {
+function isValidGridString(
+  grid,
+  ruleSetKey = state.ruleSetKey,
+  expectedLength = boardCellCount(),
+  pieceSize = state.pieceSize
+) {
   const ruleSet = RULESETS[normalizeRuleSetKey(ruleSetKey)] || RULESETS[DEFAULT_RULESET];
+  const digits = ruleDigits(ruleSet, pieceSize);
 
   return (
     typeof grid === "string" &&
     grid.length === expectedLength &&
-    grid.split("").every((value) => ruleSet.digits.includes(value))
+    grid.split("").every((value) => digits.includes(value))
   );
 }
 
@@ -1906,8 +2208,9 @@ function isNonDecreasing(values) {
   ));
 }
 
-function isFirstThreeSum(values) {
-  return values.length === 4 && sequenceSum(values.slice(0, 3)) === Number(values[3]);
+function isSumLast(values) {
+  return values.length >= 2 &&
+    sequenceSum(values.slice(0, values.length - 1)) === Number(values[values.length - 1]);
 }
 
 function hasValueEqualToSumOfOthers(values) {
@@ -1918,16 +2221,15 @@ function hasValueEqualToSumOfOthers(values) {
 
 function hasMiddleValuesBetweenEnds(values) {
   const first = Number(values[0]);
-  const last = Number(values[3]);
+  const last = Number(values[values.length - 1]);
   const low = Math.min(first, last);
   const high = Math.max(first, last);
 
-  return values.length === 4 &&
+  return values.length >= 3 &&
     first !== last &&
-    Number(values[1]) > low &&
-    Number(values[1]) < high &&
-    Number(values[2]) > low &&
-    Number(values[2]) < high;
+    values.slice(1, values.length - 1).every((value) => (
+      Number(value) > low && Number(value) < high
+    ));
 }
 
 function sequenceSum(values) {
@@ -1971,6 +2273,10 @@ function currentSizeKey() {
 
 function canonicalSizeKey(rows, cols) {
   return rows <= cols ? sizeKey(rows, cols) : sizeKey(cols, rows);
+}
+
+function tilingStoreKey(pieceSize, rows, cols) {
+  return `${pieceSize}:${sizeKey(rows, cols)}`;
 }
 
 function sizeKey(rows, cols) {

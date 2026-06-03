@@ -1,8 +1,8 @@
 # Digitiler
 
 Digitiler is a small static prototype for tiling rectangular grids with numbered
-tetrominoes. It was derived from the UI plumbing of Tilexicon, but replaces word
-validation with numeric constraints.
+tetrominoes and pentominoes. It was derived from the UI plumbing of Tilexicon,
+but replaces word validation with numeric constraints.
 
 ## Run Locally
 
@@ -43,6 +43,9 @@ http://127.0.0.1:4173/?enable6x6=true
 ```
 
 ## Experiments
+
+Further pentomino variants are being explored separately in `dev/pentomino/`.
+That directory is a checked-in development sandbox.
 
 The solution-counting script can generate random `4x4` boards and count how
 many valid tiling solutions they have:

@@ -1,0 +1,28 @@
+Digitiler pentomino 4x5 solution-count sample
+Date: 2026-06-03
+
+Rules:
+- nondecreasing: five values in reading order are weakly increasing. Digits 1-5.
+- sum-last: first four values in reading order sum to the fifth. Digits 1-9.
+- sum-anywhere: one value is the sum of the other four. Digits 1-9.
+- values-between: the three middle values in reading order are strictly between
+  the first and last values. Digits 1-9.
+
+Full Tilexicon 4x5 pentomino tiling set
+Command: node dev/pentomino/experiments/count-4x5-solutions.js 1000 --summary
+Tilings: 501
+
+- nondecreasing: min 1, median 2, mean 5.41, max 263, unique 366/1000, <=2 537/1000
+- sum-last: min 1, median 1, mean 1.40, max 6, unique 688/1000, <=2 935/1000
+- sum-anywhere: min 1, median 4, mean 5.73, max 40, unique 140/1000, <=2 293/1000
+- values-between: min 1, median 1, mean 1.63, max 12, unique 594/1000, <=2 881/1000
+
+No-repeated-shape Tilexicon 4x5 pentomino tiling set
+Command: node dev/pentomino/experiments/count-4x5-solutions.js 1000 --summary --no-repeats
+Tilings: 462
+
+- nondecreasing: min 1, median 2, mean 6.35, max 431, unique 362/1000, <=2 534/1000
+- sum-last: min 1, median 1, mean 1.37, max 7, unique 716/1000, <=2 937/1000
+- sum-anywhere: min 1, median 4, mean 5.66, max 38, unique 141/1000, <=2 307/1000
+- values-between: min 1, median 1, mean 1.54, max 21, unique 642/1000, <=2 907/1000
+
