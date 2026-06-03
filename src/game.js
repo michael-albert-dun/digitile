@@ -1,11 +1,147 @@
 const DEFAULT_PIECE_SIZE = 4;
 const GROUP_COLOR_COUNT = 9;
-const SESSION_STORAGE_KEY = "countile.currentPuzzle.v2";
+const SESSION_STORAGE_KEY = "countile.currentPuzzle.v3";
 const CONFIG = window.CountileConfig || {};
 const URL_FLAGS = new URLSearchParams(window.location.search);
 const ENABLE_6X6 = CONFIG.enable6x6 === true || parseUrlBoolean(URL_FLAGS.get("enable6x6"), false);
-const TETROMINO_DIGITS = ["1", "2", "3", "4"];
-const TETROMINO_SEQUENCES = buildNonDecreasingSequences(TETROMINO_DIGITS, DEFAULT_PIECE_SIZE);
+const DEFAULT_RULESET = "sum-last";
+const SOLUTION_CHEAT_CODE = "qqq";
+const SOLUTION_MULTIPLIERS = [3, 7, 9];
+const SOLUTION_MULTIPLIER_INVERSES = {
+  3: 7,
+  7: 3,
+  9: 9
+};
+const RULESETS = {
+  nondecreasing: {
+    label: "Nondecreasing",
+    title: "Making progress",
+    digits: ["1", "2", "3", "4"],
+    infoText: "The values in each piece must increase or stay the same in reading order.",
+    exampleValues: ["1", "2", "3", "4"],
+    invalidExampleValues: ["1", "3", "2", "4"],
+    invalidReason: "The digits must be non-decreasing and use only 1-4.",
+    generatePieceSequences(pieceCount, length) {
+      const sequences = buildAllSequences(this.digits, length).filter(isNonDecreasing);
+
+      return repeatFromGroup(sequences, pieceCount);
+    },
+    validateMove(values) {
+      return usesRuleDigits(values, this.digits) && isNonDecreasing(values);
+    },
+    validateSolution(pieceValues) {
+      return pieceValues.every((values) => this.validateMove(values));
+    }
+  },
+  "sum-last": {
+    label: "Sum last",
+    title: "Final total",
+    digits: ["1", "2", "3", "4", "5", "6"],
+    infoText: "The first three values in reading order must add up to the last value.",
+    exampleValues: ["1", "2", "3", "6"],
+    invalidExampleValues: ["1", "2", "4", "6"],
+    invalidReason: "The first three LR-TB digits must sum to the fourth and use only 1-6.",
+    generatePieceSequences(pieceCount, length) {
+      const sequences = buildAllSequences(this.digits, length).filter(isFirstThreeSum);
+
+      return repeatFromGroup(sequences, pieceCount);
+    },
+    validateMove(values) {
+      return usesRuleDigits(values, this.digits) && isFirstThreeSum(values);
+    },
+    validateSolution(pieceValues) {
+      return pieceValues.every((values) => this.validateMove(values));
+    },
+    aggregate: sequenceSum,
+    targetIndex(values) {
+      return this.validateMove(values) ? 3 : null;
+    }
+  },
+  "sum-anywhere": {
+    label: "Sum anywhere",
+    title: "Some total",
+    digits: ["1", "2", "3", "4", "5", "6"],
+    infoText: "One value in each piece must equal the sum of the other three values.",
+    exampleValues: ["6", "3", "2", "1"],
+    invalidExampleValues: ["6", "4", "2", "1"],
+    invalidReason: "One digit must equal the sum of the other three and use only 1-6.",
+    generatePieceSequences(pieceCount, length) {
+      const sequences = buildAllSequences(this.digits, length).filter(hasValueEqualToSumOfOthers);
+
+      return repeatFromGroup(sequences, pieceCount);
+    },
+    validateMove(values) {
+      return usesRuleDigits(values, this.digits) && hasValueEqualToSumOfOthers(values);
+    },
+    validateSolution(pieceValues) {
+      return pieceValues.every((values) => this.validateMove(values));
+    },
+    aggregate: sequenceSum,
+    targetIndex(values) {
+      const total = sequenceSum(values);
+
+      return this.validateMove(values)
+        ? values.findIndex((value) => Number(value) * 2 === total)
+        : null;
+    }
+  },
+  "values-between": {
+    label: "Values between",
+    title: "Middling middle",
+    digits: ["1", "2", "3", "4", "5", "6", "7", "8"],
+    infoText: "The two middle values in reading order must lie strictly between the first and last values.",
+    exampleValues: ["1", "2", "5", "6"],
+    invalidExampleValues: ["1", "1", "5", "6"],
+    invalidReason: "The middle LR-TB digits must lie strictly between the first and last.",
+    generatePieceSequences(pieceCount, length) {
+      const sequences = buildAllSequences(this.digits, length).filter(hasMiddleValuesBetweenEnds);
+
+      return repeatFromGroup(sequences, pieceCount);
+    },
+    validateMove(values) {
+      return usesRuleDigits(values, this.digits) && hasMiddleValuesBetweenEnds(values);
+    },
+    validateSolution(pieceValues) {
+      return pieceValues.every((values) => this.validateMove(values));
+    }
+  }
+};
+const RULESET_ORDER = [
+  "nondecreasing",
+  "sum-last",
+  "sum-anywhere",
+  "values-between"
+];
+const RULESET_SYMBOLS = {
+  nondecreasing: "↗",
+  "sum-last": "+!",
+  "sum-anywhere": "+?",
+  "values-between": "]:["
+};
+const RULE_MODEL_SHAPES = [
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }],
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 1, col: 1 }],
+  [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 2, col: 1 }],
+  [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }],
+  [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 2, col: 0 }],
+  [{ row: 0, col: 1 }, { row: 0, col: 2 }, { row: 1, col: 0 }, { row: 1, col: 1 }],
+  [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 2, col: 1 }],
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 1 }, { row: 1, col: 2 }],
+  [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 2, col: 0 }],
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 1, col: 0 }],
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 }, { row: 1, col: 2 }],
+  [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 2, col: 0 }, { row: 2, col: 1 }],
+  [{ row: 0, col: 1 }, { row: 1, col: 1 }, { row: 2, col: 0 }, { row: 2, col: 1 }],
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 0 }, { row: 2, col: 0 }],
+  [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 1 }, { row: 2, col: 1 }],
+  [{ row: 0, col: 0 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }],
+  [{ row: 0, col: 2 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }]
+];
+const RULESET_ALIASES = new Map([
+  ["first3-sum", "sum-last"],
+  ["first3-anywhere", "sum-anywhere"],
+  ["between", "values-between"]
+]);
 const MAX_GENERATION_ATTEMPTS = 5000;
 const MAX_ALLOWED_SOLUTIONS = 2;
 const FALLBACK_TILINGS = {
@@ -43,10 +179,17 @@ const state = {
   dragSelection: null,
   invalidSelection: false,
   invalidClearTimer: null,
+  hasTileSelectionStarted: false,
+  cheatBuffer: "",
+  ruleSetKey: DEFAULT_RULESET,
   includeZero: false,
   timerMode: TIMER_MODE.TIMED,
   startedAt: null,
   completedAt: null,
+  solutionTiling: null,
+  ruleModelValues: [],
+  ruleModelTargetIndex: null,
+  ruleModelShape: [],
   tilingsBySize: { ...FALLBACK_TILINGS },
   loadedTilingSizes: new Set(),
   tilingLoadPromises: new Map()
@@ -67,12 +210,16 @@ const elements = {
   infoPanel: document.querySelector("#info-panel"),
   shareButton: document.querySelector("#share-button"),
   pieceSizeButton: document.querySelector("#piece-size-button"),
+  ruleSetButton: document.querySelector("#rule-set-button"),
   keyboardPanel: document.querySelector("#keyboard-panel"),
   printPanel: document.querySelector("#print-panel"),
   printGrid: document.querySelector("#print-grid"),
   restartButton: document.querySelector("#restart-button"),
   newButton: document.querySelector("#new-button"),
   title: document.querySelector("#title"),
+  infoTitle: document.querySelector("#info-title"),
+  readingOrderRule: document.querySelector("#reading-order-rule"),
+  ruleDescription: document.querySelector("#rule-description"),
   ruleTileCount: document.querySelector("#rule-tile-count"),
   exampleValidStraight: document.querySelector("#example-valid-straight"),
   exampleValidBent: document.querySelector("#example-valid-bent"),
@@ -89,6 +236,7 @@ elements.timerModeInput.addEventListener("change", updateTimerMode);
 elements.infoButton.addEventListener("click", toggleInfoPanel);
 elements.shareButton.addEventListener("click", copyPuzzleToClipboard);
 elements.pieceSizeButton.addEventListener("click", switchPieceSizeMode);
+elements.ruleSetButton.addEventListener("click", cycleRuleSet);
 elements.restartButton.addEventListener("click", restartGame);
 elements.newButton.addEventListener("click", startNewGame);
 document.addEventListener("keydown", handleKeydown);
@@ -102,7 +250,13 @@ startGame();
 
 async function startGame() {
   try {
-    if (!loadPuzzleFromUrl() && !restoreStoredPuzzle()) {
+    const urlLoadResult = loadPuzzleFromUrl();
+
+    if (urlLoadResult === "generate") {
+      await loadTilingDataForSize(state.rows, state.cols);
+      generatePuzzle();
+      updateAddressBar();
+    } else if (!urlLoadResult && !restoreStoredPuzzle()) {
       await loadTilingDataForSize(state.rows, state.cols);
       generatePuzzle();
     }
@@ -195,8 +349,9 @@ function generatePuzzle() {
   for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt += 1) {
     candidate = generateCandidateBoard();
 
-    if (countValidSolutions(candidate, MAX_ALLOWED_SOLUTIONS + 1) <= MAX_ALLOWED_SOLUTIONS) {
-      state.board = candidate;
+    if (countValidSolutions(candidate.board, MAX_ALLOWED_SOLUTIONS + 1) <= MAX_ALLOWED_SOLUTIONS) {
+      state.board = candidate.board;
+      state.solutionTiling = candidate.solutionTiling;
       resetProgress();
       saveCurrentPuzzle();
       return;
@@ -210,19 +365,23 @@ function generateCandidateBoard() {
   const board = makeEmptyBoard();
   const tiling = randomItem(currentTilings());
   const pieces = tiling ? compactTilingToPieces(tiling) : fallbackPieces();
+  const pieceSequences = currentRuleSet().generatePieceSequences(pieces.length, state.pieceSize);
 
-  pieces.forEach((piece) => {
+  pieces.forEach((piece, pieceIndex) => {
     const cells = piece
       .map((id) => getCellByIdFromBoard(board, id))
       .sort(compareCells);
-    const values = randomNonDecreasingSequence(state.pieceSize);
+    const values = pieceSequences[pieceIndex];
 
     cells.forEach((cell, index) => {
       cell.value = values[index];
     });
   });
 
-  return board;
+  return {
+    board,
+    solutionTiling: tiling || makeFallbackTiling()
+  };
 }
 
 function makeEmptyBoard() {
@@ -251,14 +410,14 @@ function countValidSolutions(board, stopAt = Infinity) {
 }
 
 function isValidTilingSolution(board, tiling) {
-  return compactTilingToPieces(tiling).every((piece) => {
-    const values = piece
+  const pieceValues = compactTilingToPieces(tiling).map((piece) =>
+    piece
       .map((id) => getCellByIdFromBoard(board, id))
       .sort(compareCells)
-      .map((cell) => cell.value);
+      .map((cell) => cell.value)
+  );
 
-    return isNonDecreasingTetrominoDigits(values);
-  });
+  return currentRuleSet().validateSolution(pieceValues);
 }
 
 function currentTilings() {
@@ -290,28 +449,10 @@ function fallbackPieces() {
   });
 }
 
-function randomNonDecreasingSequence(length) {
-  if (length === DEFAULT_PIECE_SIZE) {
-    return [...randomItem(TETROMINO_SEQUENCES)];
-  }
-
-  return [...randomItem(buildNonDecreasingSequences(TETROMINO_DIGITS, length))];
-}
-
-function buildNonDecreasingSequences(digits, length, startIndex = 0) {
-  if (length === 0) {
-    return [""];
-  }
-
-  const sequences = [];
-
-  for (let index = startIndex; index < digits.length; index += 1) {
-    buildNonDecreasingSequences(digits, length - 1, index).forEach((suffix) => {
-      sequences.push(`${digits[index]}${suffix}`);
-    });
-  }
-
-  return sequences;
+function makeFallbackTiling() {
+  return Array.from({ length: boardCellCount() }, (_, index) =>
+    String(Math.floor(index / state.pieceSize))
+  ).join("");
 }
 
 function loadPuzzleFromUrl() {
@@ -321,24 +462,50 @@ function loadPuzzleFromUrl() {
   const grid = params.get("grid");
 
   setPieceSize(pieceSize, { regenerate: false });
+  setRuleSet(readUrlRuleSet(params), { regenerate: false });
   setBoardDimensions(size?.rows || defaultSize().rows, size?.cols || defaultSize().cols);
-
-  if (!grid || !new RegExp(`^[1-4]{${boardCellCount()}}$`).test(grid)) {
-    return false;
-  }
 
   state.includeZero = false;
   state.timerMode = readUrlTimerMode(params);
+
+  if (!grid) {
+    return hasUrlGenerationSettings(params) ? "generate" : false;
+  }
+
+  if (!isValidGridString(grid)) {
+    return false;
+  }
+
   state.board = makeBoardFromGrid(grid);
+  state.solutionTiling = readUrlSolution(params, grid);
   resetProgress();
   saveCurrentPuzzle();
   return true;
+}
+
+function hasUrlGenerationSettings(params) {
+  return [
+    "size",
+    "pieceSize",
+    "pieces",
+    "mode",
+    "rule",
+    "timed",
+    "untimed"
+  ].some((key) => params.has(key));
 }
 
 function readUrlPieceSize(params) {
   const explicitMode = Number(params.get("pieceSize") || params.get("pieces") || params.get("mode"));
 
   return MODES[explicitMode] ? explicitMode : DEFAULT_PIECE_SIZE;
+}
+
+function readUrlRuleSet(params) {
+  const ruleSetKey = params.get("rule");
+  const normalizedRuleSetKey = normalizeRuleSetKey(ruleSetKey);
+
+  return isKnownRuleSet(normalizedRuleSetKey) ? normalizedRuleSetKey : DEFAULT_RULESET;
 }
 
 function readUrlTimerMode(params) {
@@ -351,6 +518,16 @@ function readUrlTimerMode(params) {
   return parseUrlBoolean(params.get("untimed"), false)
     ? TIMER_MODE.UNTIMED
     : TIMER_MODE.TIMED;
+}
+
+function readUrlSolution(params, grid) {
+  const encodedSolution = params.get("sol");
+  const tiling = decodeSolutionTiling(encodedSolution, grid);
+
+  return isValidSolutionTiling(tiling, state.rows, state.cols, state.pieceSize) &&
+    isValidTilingSolution(makeBoardFromGrid(grid), tiling)
+    ? tiling
+    : null;
 }
 
 function parseUrlBoolean(value, fallback) {
@@ -370,10 +547,15 @@ function restoreStoredPuzzle() {
     }
 
     setPieceSize(stored.pieceSize || DEFAULT_PIECE_SIZE, { regenerate: false });
+    setRuleSet(stored.ruleSetKey || DEFAULT_RULESET, { regenerate: false });
     setBoardDimensions(stored.rows, stored.cols);
     state.includeZero = stored.includeZero;
     state.timerMode = stored.timerMode || TIMER_MODE.TIMED;
     state.board = makeBoardFromGrid(stored.grid);
+    state.solutionTiling = stored.solutionTiling &&
+      isValidTilingSolution(state.board, stored.solutionTiling)
+      ? stored.solutionTiling
+      : null;
     state.startedAt = stored.startedAt || Date.now();
     resetProgress({ resetTimer: false });
     saveCurrentPuzzle();
@@ -393,6 +575,8 @@ function saveCurrentPuzzle() {
         rows: state.rows,
         cols: state.cols,
         includeZero: state.includeZero,
+        ruleSetKey: state.ruleSetKey,
+        solutionTiling: state.solutionTiling,
         timerMode: state.timerMode,
         startedAt: state.startedAt
       })
@@ -404,14 +588,20 @@ function saveCurrentPuzzle() {
 
 function isStoredPuzzle(stored) {
   const pieceSize = stored?.pieceSize || DEFAULT_PIECE_SIZE;
+  const expectedCellCount = stored?.rows * stored?.cols;
 
   return (
     stored &&
     MODES[pieceSize] &&
     isSupportedSize(stored.rows, stored.cols, pieceSize) &&
     typeof stored.grid === "string" &&
-    stored.grid.length === stored.rows * stored.cols &&
-    /^[1-4]+$/.test(stored.grid) &&
+    isKnownRuleSet(stored.ruleSetKey || DEFAULT_RULESET) &&
+    isValidGridString(stored.grid, stored.ruleSetKey || DEFAULT_RULESET, expectedCellCount) &&
+    (
+      stored.solutionTiling === undefined ||
+      stored.solutionTiling === null ||
+      isValidSolutionTiling(stored.solutionTiling, stored.rows, stored.cols, pieceSize)
+    ) &&
     typeof stored.includeZero === "boolean" &&
     (stored.timerMode === undefined || Object.values(TIMER_MODE).includes(stored.timerMode)) &&
     (stored.startedAt === undefined || Number.isFinite(stored.startedAt))
@@ -434,8 +624,10 @@ function resetProgress({ resetTimer = true } = {}) {
   state.activeMoveIndex = null;
   state.dragSelection = null;
   state.invalidSelection = false;
+  state.hasTileSelectionStarted = false;
   state.startedAt = resetTimer || state.startedAt === null ? Date.now() : state.startedAt;
   state.completedAt = null;
+  setRuleModel();
   clearInvalidTimer();
 }
 
@@ -469,6 +661,7 @@ function render() {
 
   renderSelectionLines();
   renderPieceSizeButton();
+  renderRuleSetButton();
 }
 
 function renderPieceSizeButton() {
@@ -478,12 +671,34 @@ function renderPieceSizeButton() {
   elements.pieceSizeButton.setAttribute("aria-label", `Switch to ${nextPieceSize}-tile pieces`);
 }
 
+function renderRuleSetButton() {
+  const nextKey = nextRuleSetKey();
+
+  elements.ruleSetButton.textContent = RULESET_SYMBOLS[state.ruleSetKey] || "?";
+  elements.ruleSetButton.setAttribute(
+    "aria-label",
+    `Switch to ${RULESETS[nextKey].label}`
+  );
+}
+
 function renderSelectionLines() {
   elements.selectionLines.innerHTML = "";
+  const showRuleModel = shouldShowRuleModel();
+
   elements.selectionLines.classList.toggle("is-complete", isPuzzleComplete());
   elements.selectionLines.classList.toggle("is-complete-medium", isPuzzleComplete() && pieceCount() === 6);
   elements.selectionLines.classList.toggle("is-complete-large", isPuzzleComplete() && pieceCount() >= 9);
-  elements.selectionLines.classList.toggle("is-in-progress-large", !isPuzzleComplete() && pieceCount() >= 6);
+  elements.selectionLines.classList.toggle(
+    "is-in-progress-large",
+    !showRuleModel && !isPuzzleComplete() && pieceCount() >= 6
+  );
+  elements.selectionLines.classList.toggle("is-rule-model", showRuleModel);
+
+  if (showRuleModel) {
+    renderRuleModel();
+    renderCompletionMessage();
+    return;
+  }
 
   state.moves.forEach((move, index) => {
     const row = document.createElement("button");
@@ -496,8 +711,14 @@ function renderSelectionLines() {
     if (isPuzzleComplete()) {
       row.textContent = move.values;
     } else {
-      [...move.values].forEach((value) => {
-        row.append(makeMiniTile(value, lockGroupClass(index)));
+      [...move.values].forEach((value, valueIndex) => {
+        row.append(makeMiniTile(
+          value,
+          [
+            lockGroupClass(index),
+            move.targetValueIndex === valueIndex ? "is-rule-target" : null
+          ].filter(Boolean).join(" ")
+        ));
       });
     }
 
@@ -523,10 +744,74 @@ function renderSelectionLines() {
   renderCompletionMessage();
 }
 
+function renderRuleModel() {
+  const label = document.createElement("div");
+  const body = document.createElement("div");
+  const divider = document.createElement("div");
+  const row = document.createElement("div");
+
+  label.className = "rule-model-label";
+  label.textContent = currentRuleSet().title || currentRuleSet().label;
+  body.className = "rule-model-body";
+  divider.className = "rule-model-divider";
+  row.className = "selection-row is-rule-model";
+
+  state.ruleModelValues.forEach((value, index) => {
+    row.append(makeMiniTile(
+      value,
+      state.ruleModelTargetIndex === index ? "is-rule-target" : ""
+    ));
+  });
+
+  body.append(makeRuleModelTile(), divider, row);
+  elements.selectionLines.append(label, body);
+}
+
+function makeRuleModelTile() {
+  const tile = document.createElement("div");
+  const rows = Math.max(...state.ruleModelShape.map((cell) => cell.row)) + 1;
+  const cols = Math.max(...state.ruleModelShape.map((cell) => cell.col)) + 1;
+
+  tile.className = "rule-model-tile";
+  tile.style.setProperty("--model-rows", String(rows));
+  tile.style.setProperty("--model-cols", String(cols));
+  tile.setAttribute("aria-hidden", "true");
+
+  state.ruleModelShape.forEach((position, index) => {
+    const cell = document.createElement("span");
+
+    cell.className = state.ruleModelTargetIndex === index
+      ? "rule-model-cell is-rule-target"
+      : "rule-model-cell";
+    cell.textContent = state.ruleModelValues[index];
+    cell.style.gridArea = `${position.row + 1} / ${position.col + 1}`;
+    tile.append(cell);
+  });
+
+  return tile;
+}
+
+function shouldShowRuleModel() {
+  return !state.hasTileSelectionStarted &&
+    !isPuzzleComplete() &&
+    state.selection.length === 0 &&
+    state.moves.length === 0;
+}
+
+function setRuleModel() {
+  const ruleSet = currentRuleSet();
+  const values = ruleSet.generatePieceSequences(1, state.pieceSize)[0] || [];
+  const targetIndex = ruleSet.targetIndex?.(values);
+
+  state.ruleModelValues = values;
+  state.ruleModelTargetIndex = targetIndex ?? null;
+  state.ruleModelShape = randomItem(RULE_MODEL_SHAPES).slice().sort(compareCells);
+}
+
 function makeMiniTile(value, extraClassName) {
   const tile = document.createElement("span");
 
-  tile.className = `mini-tile ${extraClassName}`;
+  tile.className = ["mini-tile", extraClassName].filter(Boolean).join(" ");
   tile.textContent = value;
   tile.setAttribute("aria-hidden", "true");
 
@@ -676,6 +961,7 @@ function addCellToSelection(cell) {
     return;
   }
 
+  state.hasTileSelectionStarted = true;
   state.selection.push(cell.id);
 
   if (state.selection.length === state.pieceSize) {
@@ -700,7 +986,7 @@ function finishSelection() {
   const values = readSelectionValues(cells);
 
   cells.forEach((id) => state.locked.set(id, moveIndex));
-  state.moves.push({ cells, values, shape: result.shape, sum: result.sum });
+  state.moves.push(makeMove(cells, result));
   state.selection = [];
   state.activeMoveIndex = null;
 
@@ -711,13 +997,25 @@ function finishSelection() {
   render();
 }
 
+function makeMove(cells, result) {
+  return {
+    cells,
+    values: readSelectionValues(cells),
+    shape: result.shape,
+    aggregate: result.aggregate,
+    targetCellId: result.targetCellId,
+    targetValueIndex: result.targetValueIndex
+  };
+}
+
 function validateSelection(selection) {
   if (selection.length !== state.pieceSize) {
     return {
       valid: false,
       reason: `Choose exactly ${state.pieceSize} tiles.`,
       shape: "Incomplete",
-      sum: 0
+      aggregate: 0,
+      targetCellId: null
     };
   }
 
@@ -726,7 +1024,8 @@ function validateSelection(selection) {
       valid: false,
       reason: "A tile can only be used once in a selection.",
       shape: "Repeated tile",
-      sum: 0
+      aggregate: 0,
+      targetCellId: null
     };
   }
 
@@ -737,7 +1036,8 @@ function validateSelection(selection) {
       valid: false,
       reason: "Locked tiles cannot be selected again.",
       shape: "Locked tile",
-      sum: 0
+      aggregate: 0,
+      targetCellId: null
     };
   }
 
@@ -746,26 +1046,37 @@ function validateSelection(selection) {
       valid: false,
       reason: `Those ${state.pieceSize} tiles are not edge-connected.`,
       shape: "Disconnected",
-      sum: 0
+      aggregate: 0,
+      targetCellId: null
     };
   }
 
   const values = readCellsValues(cells);
+  const ruleSet = currentRuleSet();
+  const existingPieces = state.moves.map((move) => [...move.values]);
 
-  if (!isNonDecreasingTetrominoDigits(values)) {
+  if (!ruleSet.validateMove(values, existingPieces)) {
     return {
       valid: false,
-      reason: "The LR-TB digits must be non-decreasing and use only 1-4.",
+      reason: ruleSet.invalidReason,
       shape: "Out of order",
-      sum: 0
+      aggregate: 0,
+      targetCellId: null
     };
   }
+
+  const sortedCells = [...cells].sort(compareCells);
+  const targetIndex = ruleSet.targetIndex?.(values);
 
   return {
     valid: true,
     reason: `Valid ${currentMode().pieceName}.`,
     shape: classifyPolyomino(cells),
-    sum: values.reduce((total, value) => total + Number(value), 0)
+    aggregate: ruleSet.aggregate?.(values) ?? 0,
+    targetCellId: targetIndex === null || targetIndex === undefined
+      ? null
+      : sortedCells[targetIndex]?.id || null,
+    targetValueIndex: targetIndex ?? null
   };
 }
 
@@ -832,6 +1143,37 @@ function restartGame() {
   render();
 }
 
+function revealSolution() {
+  if (!state.solutionTiling || !isValidTilingSolution(state.board, state.solutionTiling)) {
+    return;
+  }
+
+  resetProgress({ resetTimer: false });
+  clearInvalidTimer();
+
+  compactTilingToPieces(state.solutionTiling).forEach((piece) => {
+    const cells = piece
+      .map(getCellById)
+      .filter(Boolean)
+      .sort(compareCells)
+      .map((cell) => cell.id);
+    const result = validateSelection(cells);
+
+    if (result.valid) {
+      state.moves.push(makeMove(cells, result));
+      state.moves[state.moves.length - 1].cells.forEach((id) =>
+        state.locked.set(id, state.moves.length - 1)
+      );
+    }
+  });
+
+  if (state.locked.size === boardCellCount()) {
+    state.completedAt = Date.now();
+  }
+
+  render();
+}
+
 async function startNewGame() {
   await loadTilingDataForSize(state.rows, state.cols);
   generatePuzzle();
@@ -861,6 +1203,10 @@ function updateTimerMode(event) {
 
 async function switchPieceSizeMode() {
   await setPieceSize(alternatePieceSize());
+}
+
+async function cycleRuleSet() {
+  await setRuleSet(nextRuleSetKey());
 }
 
 async function setBoardSize(rows, cols) {
@@ -899,8 +1245,35 @@ async function setPieceSize(pieceSize, { regenerate = true } = {}) {
     await loadTilingDataForSize(state.rows, state.cols);
     generatePuzzle();
     updateAddressBar();
+    renderExampleGrids();
     render();
   }
+}
+
+async function setRuleSet(ruleSetKey, { regenerate = true } = {}) {
+  const normalizedRuleSetKey = normalizeRuleSetKey(ruleSetKey);
+
+  if (!isKnownRuleSet(normalizedRuleSetKey)) {
+    return;
+  }
+
+  state.ruleSetKey = normalizedRuleSetKey;
+
+  if (regenerate) {
+    syncSettingsControls();
+    closeSettingsPanel();
+    await loadTilingDataForSize(state.rows, state.cols);
+    generatePuzzle();
+    updateAddressBar();
+    renderExampleGrids();
+    render();
+  }
+}
+
+function nextRuleSetKey() {
+  const index = RULESET_ORDER.indexOf(state.ruleSetKey);
+
+  return RULESET_ORDER[(index + 1) % RULESET_ORDER.length] || DEFAULT_RULESET;
 }
 
 function setZeroMode(enabled) {
@@ -936,50 +1309,40 @@ function updateModeText() {
 }
 
 function renderExampleGrids() {
-  const examples = modeExamples();
+  const ruleSet = currentRuleSet();
+  const examples = ruleExamples(ruleSet);
 
+  elements.infoTitle.textContent = ruleSet.title || ruleSet.label;
+  elements.readingOrderRule.hidden = state.ruleSetKey === "sum-anywhere";
+  elements.ruleDescription.textContent = ruleSet.infoText;
   renderExampleGrid(elements.exampleValidStraight, examples.validStraight);
   renderExampleGrid(elements.exampleValidBent, examples.validBent);
   renderExampleGrid(elements.exampleInvalidDisconnected, examples.invalidDisconnected);
   renderExampleGrid(elements.exampleInvalidShort, examples.invalidShort);
 }
 
-function modeExamples() {
-  if (state.pieceSize === 5) {
-    return {
-      validStraight: exampleCells("12345", [
-        [1, 1], [1, 2], [1, 3], [1, 4], [1, 5]
-      ]),
-      validBent: exampleCells("12345", [
-        [1, 1], [1, 2], [2, 2], [3, 2], [3, 3]
-      ]),
-      invalidDisconnected: exampleCells("12345", [
-        [1, 1], [1, 3], [2, 2], [3, 3], [2, 5]
-      ]),
-      invalidShort: exampleCells("1234", [
-        [1, 1], [1, 2], [2, 2], [3, 2]
-      ])
-    };
-  }
+function ruleExamples(ruleSet) {
+  const validValues = ruleSet.exampleValues || ruleSet.generatePieceSequences(1, state.pieceSize)[0];
+  const invalidValues = ruleSet.invalidExampleValues || validValues.slice().reverse();
 
   return {
-    validStraight: exampleCells("1234", [
+    validStraight: exampleCells(validValues, [
       [1, 1], [1, 2], [1, 3], [1, 4]
     ]),
-    validBent: exampleCells("1234", [
+    validBent: exampleCells(validValues, [
       [1, 1], [1, 2], [2, 2], [3, 2]
     ]),
-    invalidDisconnected: exampleCells("1234", [
+    invalidDisconnected: exampleCells(validValues, [
       [1, 1], [1, 3], [2, 2], [3, 3]
     ]),
-    invalidShort: exampleCells("123", [
-      [1, 1], [1, 2], [2, 2]
+    invalidShort: exampleCells(invalidValues, [
+      [1, 1], [1, 2], [2, 2], [3, 2]
     ])
   };
 }
 
 function exampleCells(values, positions) {
-  return [...values].map((value, index) => ({
+  return values.map((value, index) => ({
     value,
     row: positions[index][0],
     col: positions[index][1]
@@ -1026,9 +1389,25 @@ function updateSettingsSummary() {
   elements.settingsSummary.textContent = [
     `${state.pieceSize}-tile`,
     currentSizeKey(),
-    "1-4",
+    digitSummary(currentRuleSet().digits),
+    state.ruleSetKey,
     isTimedMode() ? null : "Untimed"
   ].filter(Boolean).join(" | ");
+}
+
+function digitSummary(digits) {
+  if (digits.length === 0) {
+    return "";
+  }
+
+  const numbers = digits.map(Number);
+  const isConsecutive = numbers.every((number, index) => (
+    index === 0 || number === numbers[index - 1] + 1
+  ));
+
+  return isConsecutive
+    ? `${digits[0]}-${digits[digits.length - 1]}`
+    : digits.join(",");
 }
 
 function toggleSettingsPanel(event) {
@@ -1055,6 +1434,7 @@ function toggleInfoPanel(event) {
   elements.infoButton.setAttribute("aria-expanded", String(!isOpen));
 
   if (!isOpen) {
+    renderExampleGrids();
     closeSettingsPanel();
     closeKeyboardPanel();
     closePrintPanel();
@@ -1174,6 +1554,10 @@ function handleKeydown(event) {
     return;
   }
 
+  if (handleCheatCode(event)) {
+    return;
+  }
+
   if (handleShortcut(event)) {
     return;
   }
@@ -1193,6 +1577,28 @@ function handleKeydown(event) {
     state.selection.pop();
     render();
   }
+}
+
+function handleCheatCode(event) {
+  if (event.metaKey || event.ctrlKey || event.altKey || isFormField(event.target)) {
+    return false;
+  }
+
+  if (event.key.length !== 1) {
+    return false;
+  }
+
+  state.cheatBuffer = `${state.cheatBuffer}${event.key.toLowerCase()}`
+    .slice(-SOLUTION_CHEAT_CODE.length);
+
+  if (state.cheatBuffer !== SOLUTION_CHEAT_CODE) {
+    return false;
+  }
+
+  event.preventDefault();
+  state.cheatBuffer = "";
+  revealSolution();
+  return true;
 }
 
 function handleShortcut(event) {
@@ -1262,6 +1668,10 @@ function getTileClassName(cell, lockedMoveIndex) {
     if (isDeleteAnchorCell(cell, lockedMoveIndex)) {
       classes.push("is-delete-anchor");
     }
+
+    if (isRuleTargetCell(cell, lockedMoveIndex)) {
+      classes.push("is-rule-target");
+    }
   }
 
   return classes.join(" ");
@@ -1281,7 +1691,15 @@ function getTileAriaLabel(cell, lockedMoveIndex) {
     return `${position}. Remove ${values}.`;
   }
 
+  if (isRuleTargetCell(cell, lockedMoveIndex)) {
+    return `${position}. Target value for completed piece ${values}.`;
+  }
+
   return `${position}. Select completed piece ${values}.`;
+}
+
+function isRuleTargetCell(cell, moveIndex) {
+  return state.moves[moveIndex]?.targetCellId === cell.id;
 }
 
 function isDeleteAnchorCell(cell, moveIndex) {
@@ -1308,13 +1726,6 @@ function readCellsValues(cells) {
   return [...cells].sort(compareCells).map((cell) => cell.value);
 }
 
-function isNonDecreasingTetrominoDigits(values) {
-  return values.every((value, index) => (
-    TETROMINO_DIGITS.includes(value) &&
-    (index === 0 || Number(value) >= Number(values[index - 1]))
-  ));
-}
-
 function rebuildLockedMap() {
   state.locked.clear();
 
@@ -1333,10 +1744,17 @@ function makeGridString() {
 
 function makeGridUrl() {
   const url = new URL(window.location.href);
+  const grid = makeGridString();
 
   url.searchParams.set("size", currentSizeKey());
   url.searchParams.set("pieceSize", String(state.pieceSize));
-  url.searchParams.set("grid", makeGridString());
+  url.searchParams.set("rule", state.ruleSetKey);
+  url.searchParams.set("grid", grid);
+  if (state.solutionTiling) {
+    url.searchParams.set("sol", encodeSolutionTiling(state.solutionTiling, grid));
+  } else {
+    url.searchParams.delete("sol");
+  }
   url.searchParams.set("timed", isTimedMode() ? "1" : "0");
   url.searchParams.delete("zero");
   url.searchParams.delete("untimed");
@@ -1350,6 +1768,175 @@ function updateAddressBar() {
 
 function currentMode() {
   return MODES[state.pieceSize] || MODES[DEFAULT_PIECE_SIZE];
+}
+
+function currentRuleSet() {
+  return RULESETS[normalizeRuleSetKey(state.ruleSetKey)] || RULESETS[DEFAULT_RULESET];
+}
+
+function isKnownRuleSet(ruleSetKey) {
+  return Object.prototype.hasOwnProperty.call(RULESETS, normalizeRuleSetKey(ruleSetKey));
+}
+
+function normalizeRuleSetKey(ruleSetKey) {
+  const key = String(ruleSetKey || "").toLowerCase();
+
+  return RULESET_ALIASES.get(key) || key;
+}
+
+function isValidGridString(grid, ruleSetKey = state.ruleSetKey, expectedLength = boardCellCount()) {
+  const ruleSet = RULESETS[normalizeRuleSetKey(ruleSetKey)] || RULESETS[DEFAULT_RULESET];
+
+  return (
+    typeof grid === "string" &&
+    grid.length === expectedLength &&
+    grid.split("").every((value) => ruleSet.digits.includes(value))
+  );
+}
+
+function isValidSolutionTiling(tiling, rows = state.rows, cols = state.cols, pieceSize = state.pieceSize) {
+  const expectedCellCount = rows * cols;
+  const expectedPieceCount = expectedCellCount / pieceSize;
+
+  if (
+    !Number.isInteger(expectedPieceCount) ||
+    typeof tiling !== "string" ||
+    tiling.length !== expectedCellCount ||
+    !/^\d+$/.test(tiling)
+  ) {
+    return false;
+  }
+
+  const counts = Array.from({ length: expectedPieceCount }, () => 0);
+  const pieces = Array.from({ length: expectedPieceCount }, () => []);
+
+  [...tiling].forEach((label, index) => {
+    const pieceIndex = Number(label);
+
+    if (pieceIndex >= 0 && pieceIndex < expectedPieceCount) {
+      counts[pieceIndex] += 1;
+      pieces[pieceIndex].push({
+        row: Math.floor(index / cols),
+        col: index % cols
+      });
+    }
+  });
+
+  return counts.every((count) => count === pieceSize) &&
+    pieces.every((piece) => areCoordinatesEdgeConnected(piece));
+}
+
+function encodeSolutionTiling(tiling, grid = makeGridString()) {
+  if (!isValidSolutionTiling(tiling)) {
+    return "";
+  }
+
+  const settings = solutionCipherSettings(grid);
+  let rolling = settings.rolling;
+
+  return [...tiling].map((label, index) => {
+    const raw = Number(label);
+    const additive = (settings.seed + index * settings.offset) % 10;
+    const mixed = mod10(raw + settings.offset + rolling + index * settings.step);
+    const encoded = mod10(mixed * settings.multiplier + additive);
+
+    rolling = mod10(rolling + raw + index + settings.offset);
+    return String(encoded);
+  }).join("");
+}
+
+function decodeSolutionTiling(encoded, grid = makeGridString()) {
+  if (typeof encoded !== "string" || encoded.length !== boardCellCount() || !/^\d+$/.test(encoded)) {
+    return null;
+  }
+
+  const settings = solutionCipherSettings(grid);
+  let rolling = settings.rolling;
+
+  return [...encoded].map((label, index) => {
+    const additive = (settings.seed + index * settings.offset) % 10;
+    const mixed = mod10((Number(label) - additive) * settings.inverseMultiplier);
+    const raw = mod10(mixed - settings.offset - rolling - index * settings.step);
+
+    rolling = mod10(rolling + raw + index + settings.offset);
+    return String(raw);
+  }).join("");
+}
+
+function solutionCipherSettings(grid) {
+  const seed = checksumString(`${currentSizeKey()}|${state.pieceSize}|${state.ruleSetKey}|${grid}`);
+  const multiplier = SOLUTION_MULTIPLIERS[seed % SOLUTION_MULTIPLIERS.length];
+
+  return {
+    seed,
+    multiplier,
+    inverseMultiplier: SOLUTION_MULTIPLIER_INVERSES[multiplier],
+    offset: (seed * 7 + state.rows + state.cols) % 10,
+    rolling: (seed * 3 + state.pieceSize) % 10,
+    step: (seed % 7) + 3
+  };
+}
+
+function checksumString(value) {
+  return [...value].reduce((checksum, character, index) => (
+    (checksum + character.charCodeAt(0) * (index + 17)) % 1000003
+  ), 0);
+}
+
+function mod10(value) {
+  return ((value % 10) + 10) % 10;
+}
+
+function usesRuleDigits(values, digits) {
+  return values.length === state.pieceSize && values.every((value) => digits.includes(value));
+}
+
+function repeatFromGroup(group, count) {
+  return Array.from({ length: count }, () => randomItem(group));
+}
+
+function buildAllSequences(digits, length) {
+  if (length === 0) {
+    return [[]];
+  }
+
+  return digits.flatMap((digit) =>
+    buildAllSequences(digits, length - 1).map((suffix) => [digit, ...suffix])
+  );
+}
+
+function isNonDecreasing(values) {
+  return values.every((value, index) => (
+    index === 0 || Number(value) >= Number(values[index - 1])
+  ));
+}
+
+function isFirstThreeSum(values) {
+  return values.length === 4 && sequenceSum(values.slice(0, 3)) === Number(values[3]);
+}
+
+function hasValueEqualToSumOfOthers(values) {
+  const total = sequenceSum(values);
+
+  return values.some((value) => Number(value) * 2 === total);
+}
+
+function hasMiddleValuesBetweenEnds(values) {
+  const first = Number(values[0]);
+  const last = Number(values[3]);
+  const low = Math.min(first, last);
+  const high = Math.max(first, last);
+
+  return values.length === 4 &&
+    first !== last &&
+    Number(values[1]) > low &&
+    Number(values[1]) < high &&
+    Number(values[2]) > low &&
+    Number(values[2]) < high;
+}
+
+function sequenceSum(values) {
+  return values.reduce((total, value) => total + Number(value), 0);
 }
 
 function modeBoardSizes(pieceSize = state?.pieceSize || DEFAULT_PIECE_SIZE) {
@@ -1427,6 +2014,35 @@ function isEdgeConnected(cells) {
       .filter((neighbor) => ids.has(neighbor.id) && !seen.has(neighbor.id))
       .forEach((neighbor) => {
         seen.add(neighbor.id);
+        stack.push(neighbor);
+      });
+  }
+
+  return seen.size === cells.length;
+}
+
+function areCoordinatesEdgeConnected(cells) {
+  const ids = new Set(cells.map((cell) => `${cell.row},${cell.col}`));
+  const seen = new Set([`${cells[0].row},${cells[0].col}`]);
+  const stack = [cells[0]];
+
+  while (stack.length > 0) {
+    const current = stack.pop();
+    const neighbors = [
+      { row: current.row - 1, col: current.col },
+      { row: current.row + 1, col: current.col },
+      { row: current.row, col: current.col - 1 },
+      { row: current.row, col: current.col + 1 }
+    ];
+
+    neighbors
+      .filter((neighbor) => {
+        const id = `${neighbor.row},${neighbor.col}`;
+
+        return ids.has(id) && !seen.has(id);
+      })
+      .forEach((neighbor) => {
+        seen.add(`${neighbor.row},${neighbor.col}`);
         stack.push(neighbor);
       });
   }

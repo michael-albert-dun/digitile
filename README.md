@@ -27,8 +27,9 @@ For the default `4x4` mode, generation currently works like this:
 1. Load tetromino tilings from `data/tetromino-tilings-4x4.txt`.
 2. Pick a random tiling.
 3. Fill each tetromino in left-to-right, top-to-bottom order.
-4. Each tetromino receives a uniformly chosen non-decreasing digit sequence from
-   digits `1` through `4`, such as `1111`, `1124`, or `2334`.
+4. Each tetromino receives a uniformly chosen digit sequence from digits `1`
+   through `6` where the first three values sum to the fourth, such as `1113`,
+   `1124`, or `1236`.
 5. Reject the board unless it has at most two valid solutions.
 
 Solution counting scans the available tilings and stops as soon as a third valid
@@ -62,20 +63,33 @@ To sample only boards accepted by the app's `<= 2 solutions` rejection rule:
 node scripts/count-solutions.js 100 --accepted-only --summary
 ```
 
-## Local Git Setup
-
-This directory is not currently a git repository. To make it one:
+The experiment script can also test alternate rule and digit sets:
 
 ```sh
-git init
-git add .
-git commit -m "Initial Countile prototype"
+node scripts/count-solutions.js 100 --summary --rule same-sum
+node scripts/count-solutions.js 100 --summary --rule different-sum
+node scripts/count-solutions.js 100 --summary --rule same-product
+node scripts/count-solutions.js 100 --summary --rule sum-last
+node scripts/count-solutions.js 100 --summary --rule sum-anywhere
 ```
 
-Optionally, add a remote later:
+Available rules:
+
+- `nondecreasing`: current app rule. In reading order, values in each piece are
+  weakly increasing. Default digits: `1-4`.
+- `same-sum`: all pieces in a solution have the same sum. Default digits: `1-4`.
+- `different-sum`: all pieces in a solution have different sums. Default digits:
+  `1-4`.
+- `same-product`: all pieces in a solution have the same product. Default
+  digits: `1-6`.
+- `sum-last`: in reading order, the first three values in each piece sum to
+  the fourth. Default digits: `1-6`.
+- `sum-anywhere`: one value in each piece is the sum of the other three,
+  regardless of its position. Default digits: `1-6`.
+
+The digit set can be overridden:
 
 ```sh
-git remote add origin <remote-url>
-git branch -M main
-git push -u origin main
+node scripts/count-solutions.js 100 --summary --rule same-product --digits 1-5
+node scripts/count-solutions.js 100 --summary --rule same-sum --digits 0,1,2,3,4
 ```

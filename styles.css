@@ -79,6 +79,7 @@ button {
   font-size: 0.92rem;
   font-weight: 560;
   line-height: 1;
+  white-space: nowrap;
   box-shadow: 0 6px 14px rgba(45, 62, 76, 0.06);
 }
 
@@ -107,6 +108,13 @@ button {
   right: 14px;
   bottom: 14px;
   top: auto;
+}
+
+.rule-set-button {
+  right: 14px;
+  bottom: 14px;
+  top: auto;
+  font-size: 0.76rem;
 }
 
 .settings-button span {
@@ -608,6 +616,51 @@ h1 {
   background: var(--locked-i);
 }
 
+.lock-group-0 {
+  --target-bg: color-mix(in srgb, var(--locked-a) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-a) 46%, #29343d);
+}
+
+.lock-group-1 {
+  --target-bg: color-mix(in srgb, var(--locked-b) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-b) 46%, #29343d);
+}
+
+.lock-group-2 {
+  --target-bg: color-mix(in srgb, var(--locked-c) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-c) 46%, #29343d);
+}
+
+.lock-group-3 {
+  --target-bg: color-mix(in srgb, var(--locked-d) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-d) 46%, #29343d);
+}
+
+.lock-group-4 {
+  --target-bg: color-mix(in srgb, var(--locked-e) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-e) 46%, #29343d);
+}
+
+.lock-group-5 {
+  --target-bg: color-mix(in srgb, var(--locked-f) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-f) 46%, #29343d);
+}
+
+.lock-group-6 {
+  --target-bg: color-mix(in srgb, var(--locked-g) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-g) 46%, #29343d);
+}
+
+.lock-group-7 {
+  --target-bg: color-mix(in srgb, var(--locked-h) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-h) 46%, #29343d);
+}
+
+.lock-group-8 {
+  --target-bg: color-mix(in srgb, var(--locked-i) 76%, #29343d);
+  --target-border: color-mix(in srgb, var(--locked-i) 46%, #29343d);
+}
+
 .tile.lock-group-0 {
   --delete-bg: color-mix(in srgb, var(--locked-a) 34%, white);
   --delete-border: color-mix(in srgb, var(--locked-a) 70%, #29343d);
@@ -653,6 +706,12 @@ h1 {
   --delete-border: color-mix(in srgb, var(--locked-i) 70%, #29343d);
 }
 
+.tile.is-rule-target {
+  border-color: var(--target-border, #29343d);
+  background: var(--target-bg, color-mix(in srgb, var(--tile) 76%, #29343d));
+  color: #fbfdff;
+}
+
 .selection-lines {
   display: flex;
   flex-direction: column;
@@ -687,6 +746,71 @@ h1 {
   border-radius: 8px;
   font-size: 0.86rem;
   box-shadow: none;
+}
+
+.selection-lines.is-rule-model {
+  justify-content: center;
+  gap: 10px;
+}
+
+.rule-model-label {
+  color: var(--ink);
+  font-size: clamp(1.15rem, 4vw, 1.55rem);
+  font-weight: 680;
+  line-height: 1;
+  letter-spacing: 0;
+}
+
+.rule-model-body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.rule-model-tile {
+  display: grid;
+  grid-template-columns: repeat(var(--model-cols, 3), 38px);
+  grid-template-rows: repeat(var(--model-rows, 2), 38px);
+  gap: 5px;
+  justify-content: center;
+}
+
+.rule-model-cell {
+  display: grid;
+  place-items: center;
+  border: 2px solid color-mix(in srgb, var(--locked-c) 72%, #29343d);
+  border-radius: 12px;
+  background: var(--locked-c);
+  color: var(--ink);
+  font-size: 1.55rem;
+  font-weight: 760;
+  line-height: 1;
+  box-shadow: 0 6px 14px rgba(45, 62, 76, 0.08);
+}
+
+.rule-model-cell.is-rule-target {
+  border-color: var(--target-border, #29343d);
+  background: var(--target-bg, color-mix(in srgb, var(--tile) 76%, #29343d));
+  color: #fbfdff;
+}
+
+.rule-model-divider {
+  width: 1px;
+  height: 62px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tile-border) 72%, #29343d);
+}
+
+.selection-row.is-rule-model {
+  min-height: 34px;
+  padding: 0;
+  border: 0;
+}
+
+.selection-row.is-rule-model .mini-tile {
+  border-color: color-mix(in srgb, var(--locked-c) 72%, #29343d);
+  background: var(--locked-c);
 }
 
 .selection-row {
@@ -771,6 +895,12 @@ h1 {
 .mini-tile.is-current {
   background: var(--selected);
   border-color: var(--selected-border);
+}
+
+.mini-tile.is-rule-target {
+  border-color: var(--target-border, #29343d);
+  background: var(--target-bg, color-mix(in srgb, var(--tile) 76%, #29343d));
+  color: #fbfdff;
 }
 
 .toolbar {
