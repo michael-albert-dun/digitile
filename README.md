@@ -74,6 +74,7 @@ node scripts/count-solutions.js 100 --summary --rule different-sum
 node scripts/count-solutions.js 100 --summary --rule same-product
 node scripts/count-solutions.js 100 --summary --rule sum-last
 node scripts/count-solutions.js 100 --summary --rule sum-anywhere
+node scripts/count-solutions.js 100 --summary --rule mean
 ```
 
 Available rules:
@@ -89,6 +90,8 @@ Available rules:
   the fourth. Default digits: `1-6`.
 - `sum-anywhere`: one value in each piece is the sum of the other three,
   regardless of its position. Default digits: `1-6`.
+- `mean`: a piece contains its arithmetic mean in any position. Default digits:
+  `1-8`.
 
 The digit set can be overridden:
 

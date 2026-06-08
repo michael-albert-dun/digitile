@@ -13,7 +13,8 @@ const RULES = {
   SAME_PRODUCT: "same-product",
   SUM_LAST: "sum-last",
   SUM_ANYWHERE: "sum-anywhere",
-  VALUES_BETWEEN: "values-between"
+  VALUES_BETWEEN: "values-between",
+  MEAN: "mean"
 };
 const RULE_ALIASES = new Map([
   ["nondecreasing", RULES.NONDECREASING],
@@ -32,7 +33,11 @@ const RULE_ALIASES = new Map([
   ["sum-anywhere", RULES.SUM_ANYWHERE],
   ["sum-tile-anywhere", RULES.SUM_ANYWHERE],
   ["values-between", RULES.VALUES_BETWEEN],
-  ["between", RULES.VALUES_BETWEEN]
+  ["between", RULES.VALUES_BETWEEN],
+  ["mean", RULES.MEAN],
+  ["mean-floor", RULES.MEAN],
+  ["thats-just-mean", RULES.MEAN],
+  ["that's-just-mean", RULES.MEAN]
 ]);
 
 const OPTIONS = readOptions();
@@ -288,6 +293,27 @@ function buildRule(ruleName, digits) {
     };
   }
 
+  if (ruleName === RULES.MEAN) {
+    const sequences = allSequences.filter(hasExactMeanValue);
+
+    if (sequences.length === 0) {
+      throw new Error(`Rule ${ruleName} has no valid sequences for digits ${digits.join("")}.`);
+    }
+
+    return {
+      name: ruleName,
+      digits,
+      generatePieceSequences: (pieceCount) => Array.from(
+        { length: pieceCount },
+        () => randomItem(sequences)
+      ),
+      validatePieces: (pieces) => pieces.every((values) => (
+        values.every((value) => digits.includes(value)) &&
+        hasExactMeanValue(values)
+      ))
+    };
+  }
+
   throw new Error(`Unknown rule: ${ruleName}`);
 }
 
@@ -333,6 +359,18 @@ function hasMiddleValuesBetweenEnds(values) {
     Number(values[1]) < high &&
     Number(values[2]) > low &&
     Number(values[2]) < high;
+}
+
+function exactMean(values) {
+  const total = sequenceSum(values);
+
+  return total % values.length === 0 ? total / values.length : null;
+}
+
+function hasExactMeanValue(values) {
+  const mean = exactMean(values);
+
+  return mean !== null && values.some((value) => Number(value) === mean);
 }
 
 function sequenceSum(sequence) {
@@ -439,7 +477,7 @@ function readDigits(text, ruleName) {
   if (!text) {
     return [RULES.SAME_PRODUCT, RULES.SUM_LAST, RULES.SUM_ANYWHERE].includes(ruleName)
       ? ["1", "2", "3", "4", "5", "6"]
-      : ruleName === RULES.VALUES_BETWEEN
+      : [RULES.VALUES_BETWEEN, RULES.MEAN].includes(ruleName)
         ? ["1", "2", "3", "4", "5", "6", "7", "8"]
       : ["1", "2", "3", "4"];
   }

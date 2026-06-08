@@ -157,19 +157,57 @@ const RULESETS = {
     validateSolution(pieceValues) {
       return pieceValues.every((values) => this.validateMove(values));
     }
+  },
+  mean: {
+    label: "That's just mean",
+    title: "That's just mean",
+    digits: ["1", "2", "3", "4", "5", "6", "7", "8"],
+    infoText: "A piece must contain its arithmetic mean in any position.",
+    exampleValuesBySize: {
+      4: ["5", "2", "4", "5"],
+      5: ["1", "2", "3", "4", "3"]
+    },
+    invalidExampleValuesBySize: {
+      4: ["2", "5", "5", "3"],
+      5: ["1", "2", "3", "4", "4"]
+    },
+    invalidReason(values) {
+      return `The piece must contain its arithmetic mean in any position and use only ${digitSummary(ruleDigits(this))}.`;
+    },
+    generatePieceSequences(pieceCount, length) {
+      const sequences = buildAllSequences(ruleDigits(this), length).filter(hasExactMeanValue);
+
+      return repeatFromGroup(sequences, pieceCount);
+    },
+    validateMove(values) {
+      return usesRuleDigits(values, ruleDigits(this)) && hasExactMeanValue(values);
+    },
+    validateSolution(pieceValues) {
+      return pieceValues.every((values) => this.validateMove(values));
+    },
+    aggregate: sequenceSum,
+    targetIndex(values) {
+      const mean = exactMean(values);
+
+      return this.validateMove(values)
+        ? values.findIndex((value) => Number(value) === mean)
+        : null;
+    }
   }
 };
 const RULESET_ORDER = [
   "nondecreasing",
   "sum-last",
   "sum-anywhere",
-  "values-between"
+  "values-between",
+  "mean"
 ];
 const RULESET_SYMBOLS = {
   nondecreasing: "↗",
   "sum-last": "+!",
   "sum-anywhere": "+?",
-  "values-between": "]:["
+  "values-between": "]:[",
+  mean: "x"
 };
 const INTRO_RULE_CARDS = [
   {
@@ -191,6 +229,11 @@ const INTRO_RULE_CARDS = [
     key: "values-between",
     values: ["6", "2", "5", "1"],
     shape: [{ row: 0, col: 1 }, { row: 1, col: 0 }, { row: 1, col: 1 }, { row: 1, col: 2 }]
+  },
+  {
+    key: "mean",
+    values: ["5", "2", "4", "5"],
+    shape: [{ row: 0, col: 0 }, { row: 0, col: 1 }, { row: 1, col: 1 }, { row: 1, col: 2 }]
   }
 ];
 const RULE_MODEL_SHAPES = [
@@ -223,7 +266,10 @@ const PENTOMINO_RULE_MODEL_SHAPES = [
 const RULESET_ALIASES = new Map([
   ["first3-sum", "sum-last"],
   ["first3-anywhere", "sum-anywhere"],
-  ["between", "values-between"]
+  ["between", "values-between"],
+  ["mean-floor", "mean"],
+  ["thats-just-mean", "mean"],
+  ["that's-just-mean", "mean"]
 ]);
 const MAX_GENERATION_ATTEMPTS = 5000;
 const MAX_ALLOWED_SOLUTIONS = 2;

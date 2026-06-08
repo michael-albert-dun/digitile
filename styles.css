@@ -132,6 +132,20 @@ button {
   font-size: 0.76rem;
 }
 
+.rule-set-button.is-mean-rule {
+  font-size: 0.88rem;
+}
+
+.rule-set-button.is-mean-rule::before {
+  content: "";
+  position: absolute;
+  width: 9px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translateY(-6px);
+}
+
 .settings-button span {
   display: block;
   width: 14px;

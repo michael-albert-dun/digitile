@@ -562,6 +562,7 @@ function renderRuleSetButton() {
 
   elements.ruleSetButton.hidden = state.isIntro;
   elements.ruleSetButton.textContent = RULESET_SYMBOLS[state.ruleSetKey] || "?";
+  elements.ruleSetButton.classList.toggle("is-mean-rule", state.ruleSetKey === "mean");
   elements.ruleSetButton.setAttribute(
     "aria-label",
     `Switch to ${RULESETS[nextKey].label}`
@@ -1626,7 +1627,8 @@ function handleShortcut(event) {
 
   const key = event.key.toLowerCase();
   const shortcuts = {
-    i: () => toggleInfoPanel(event)
+    i: () => toggleInfoPanel(event),
+    m: () => cycleRuleSet()
   };
 
   if (!shortcuts[key]) {
@@ -1981,6 +1983,18 @@ function hasMiddleValuesBetweenEnds(values) {
     values.slice(1, values.length - 1).every((value) => (
       Number(value) > low && Number(value) < high
     ));
+}
+
+function exactMean(values) {
+  const total = sequenceSum(values);
+
+  return total % values.length === 0 ? total / values.length : null;
+}
+
+function hasExactMeanValue(values) {
+  const mean = exactMean(values);
+
+  return mean !== null && values.some((value) => Number(value) === mean);
 }
 
 function modeBoardSizes(pieceSize = state?.pieceSize || DEFAULT_PIECE_SIZE) {
