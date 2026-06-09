@@ -35,7 +35,6 @@ const RULE_ALIASES = new Map([
   ["values-between", RULES.VALUES_BETWEEN],
   ["between", RULES.VALUES_BETWEEN],
   ["mean", RULES.MEAN],
-  ["mean-floor", RULES.MEAN],
   ["thats-just-mean", RULES.MEAN],
   ["that's-just-mean", RULES.MEAN]
 ]);

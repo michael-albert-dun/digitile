@@ -267,7 +267,6 @@ const RULESET_ALIASES = new Map([
   ["first3-sum", "sum-last"],
   ["first3-anywhere", "sum-anywhere"],
   ["between", "values-between"],
-  ["mean-floor", "mean"],
   ["thats-just-mean", "mean"],
   ["that's-just-mean", "mean"]
 ]);
